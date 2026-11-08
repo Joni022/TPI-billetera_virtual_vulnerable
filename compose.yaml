@@ -1,0 +1,166 @@
+services:
+  initialize:
+    build:
+      context: .
+      target: runtime
+    user: "0:0"
+    entrypoint: ["python", "-c"]
+    command:
+      - |
+        import os, pathlib, secrets
+        for directory in ('/state/vulnerable', '/state/secure', '/state/lab', '/run/lab-secret'):
+            pathlib.Path(directory).mkdir(parents=True, exist_ok=True)
+            os.chown(directory, 10001, 10001)
+            os.chmod(directory, 0o700)
+        path = pathlib.Path('/run/lab-secret/token')
+        if not path.exists():
+            path.write_text(secrets.token_urlsafe(48), encoding='utf-8')
+        os.chown(path, 10001, 10001)
+        os.chmod(path, 0o600)
+    volumes:
+      - vulnerable-data:/state/vulnerable
+      - secure-data:/state/secure
+      - lab-data:/state/lab
+      - control-secret:/run/lab-secret
+    networks: [laboratory]
+
+  vulnerable:
+    build:
+      context: .
+      target: runtime
+    environment:
+      VARIANT: vulnerable
+      COOKIE_NAME: wallet_vulnerable
+      DATABASE: /state/wallet.sqlite
+      LAB_CONTROL_TOKEN_FILE: /run/lab-secret/token
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:5000/api/meta', timeout=3)"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+    volumes:
+      - vulnerable-data:/state
+      - control-secret:/run/lab-secret:ro
+    depends_on:
+      initialize:
+        condition: service_completed_successfully
+      quote-provider:
+        condition: service_started
+    networks: [laboratory]
+
+  secure:
+    build:
+      context: .
+      target: runtime
+    environment:
+      VARIANT: secure
+      COOKIE_NAME: wallet_secure
+      PORT: 5001
+      DATABASE: /state/wallet.sqlite
+      LAB_CONTROL_TOKEN_FILE: /run/lab-secret/token
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:5001/api/meta', timeout=3)"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+    volumes:
+      - secure-data:/state
+      - control-secret:/run/lab-secret:ro
+    depends_on:
+      initialize:
+        condition: service_completed_successfully
+      quote-provider:
+        condition: service_started
+    networks: [laboratory]
+
+  quote-provider:
+    build:
+      context: .
+      target: runtime
+    command: ["python", "fixtures/server.py"]
+    environment:
+      FIXTURE_MODE: provider
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/stats', timeout=3)"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    networks: [laboratory]
+
+  private-ledger:
+    build:
+      context: .
+      target: runtime
+    command: ["python", "fixtures/server.py"]
+    environment:
+      FIXTURE_MODE: private
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/stats', timeout=3)"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    networks: [laboratory]
+
+  lab:
+    build:
+      context: .
+      target: lab
+    init: true
+    shm_size: 256mb
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:5002/health', timeout=3)"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+    environment:
+      LAB_CONTROL_TOKEN_FILE: /run/lab-secret/token
+      LAB_DATA_DIR: /state
+      IN_DOCKER: "1"
+      LAB_PROXIES: "1"
+      FRONTEND_DIR: /app/frontend/dist
+    volumes:
+      - lab-data:/state
+      - control-secret:/run/lab-secret:ro
+    depends_on:
+      initialize:
+        condition: service_completed_successfully
+      vulnerable:
+        condition: service_started
+      secure:
+        condition: service_started
+      private-ledger:
+        condition: service_started
+    networks: [laboratory]
+
+  gateway:
+    build:
+      context: .
+      target: runtime
+    command: ["python", "-m", "backend.gateway"]
+    ports:
+      - "127.0.0.1:5000:5000"
+      - "127.0.0.1:5001:5001"
+      - "127.0.0.1:5002:5002"
+      - "127.0.0.1:5003:5003"
+    depends_on:
+      vulnerable:
+        condition: service_healthy
+      secure:
+        condition: service_healthy
+      lab:
+        condition: service_healthy
+    networks: [laboratory, edge]
+
+networks:
+  laboratory:
+    internal: true
+  edge: {}
+
+volumes:
+  vulnerable-data:
+  secure-data:
+  lab-data:
+  control-secret:

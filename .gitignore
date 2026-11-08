@@ -1,0 +1,13 @@
+.venv/
+.lock-venv/
+__pycache__/
+.pytest_cache/
+pytest-work/
+.runtime/
+.test-tmp*/
+*.pyc
+data/
+frontend/node_modules/
+frontend/dist/
+artifacts/
+.env
