@@ -13,6 +13,7 @@ import argparse
 import json
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlsplit
 
 from playwright.sync_api import Page, sync_playwright
 
@@ -31,14 +32,22 @@ VIEWPORTS = {
 
 
 def _attach_browser_log(page: Page, report: dict[str, Any]) -> None:
-    report["console_errors"] = []
-    report["page_errors"] = []
-    page.on(
-        "console",
-        lambda message: report["console_errors"].append(message.text)
-        if message.type == "error"
-        else None,
-    )
+    authenticated = {"value": False}
+    def response_received(response):
+        if urlsplit(response.url).path == '/api/auth/login' and response.status == 200:
+            authenticated['value'] = True
+    page.on('response', response_received)
+    def console_received(message):
+        if message.type != 'error':
+            return
+        path = urlsplit(message.location.get('url', '')).path
+        expected_auth_error = ('401' in message.text and
+                               (path == '/api/auth/login' or (path == '/api/me' and not authenticated['value'])))
+        if expected_auth_error:
+            report.setdefault('expected_auth_console', []).append({'path': path, 'status': 401})
+        else:
+            report['console_errors'].append(message.text)
+    page.on('console', console_received)
     page.on("pageerror", lambda error: report["page_errors"].append(str(error)))
 
 
@@ -55,7 +64,14 @@ def _overflow(page: Page, report: dict[str, Any], label: str) -> None:
 
 
 def _focus_visible(page: Page) -> dict[str, Any]:
+    page.bring_to_front()
     page.keyboard.press("Tab")
+    page.wait_for_function("""() => {
+      const element = document.activeElement;
+      if (!document.hasFocus() || !element?.matches(':focus-visible')) return false;
+      const style = getComputedStyle(element);
+      return style.outlineStyle !== 'none' && parseFloat(style.outlineWidth) > 0;
+    }""", timeout=3000)
     return page.evaluate(
         """() => {
           const element = document.activeElement;

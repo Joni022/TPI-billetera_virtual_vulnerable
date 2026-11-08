@@ -15,7 +15,16 @@ export default defineConfig(({ mode }) => {
       host: "127.0.0.1",
       strictPort: true,
       proxy: {
-        "/api": { target: walletTarget },
+        "/api": {
+          target: walletTarget,
+          configure: (proxy) => {
+            proxy.on("proxyReq", (proxyRequest, request) => {
+              if (request.method !== "GET" && request.method !== "HEAD") {
+                proxyRequest.setHeader("Origin", new URL(walletTarget).origin);
+              }
+            });
+          },
+        },
         "/lab/api": {
           target: "http://localhost:5002",
           configure: (proxy) => {

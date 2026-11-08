@@ -262,7 +262,7 @@ def create_app(config=None):
         user = require_user()
         data = payload() or {}
         recipient, concept, amount = data.get('recipient'), data.get('concept', ''), data.get('amount_cents')
-        if isinstance(amount, str) and amount.isascii() and amount.isdigit():
+        if isinstance(amount, str) and len(amount) <= 9 and amount.isascii() and amount.isdigit():
             amount = int(amount)
         if not isinstance(recipient,str) or not isinstance(concept,str) or len(concept)>200 or type(amount) is not int or not 0 < amount <= 100000000:
             return jsonify(error='Datos inválidos'), 400

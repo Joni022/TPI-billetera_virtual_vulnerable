@@ -43,20 +43,24 @@ La clasificación siguiente utiliza [OWASP Top 10:2025](https://top10.owasp.org/
 
 La comprobación de un token CSRF no protege frente a un XSS ya ejecutado en el mismo origen: son controles para límites de confianza diferentes. Para las consultas, los parámetros protegen valores, mientras que identificadores SQL dinámicos requerirían una selección explícita; en este trabajo se usa una estructura de consulta fija.
 
+Los controles pueden revisarse en [backend/app.py](../backend/app.py): `require_user` y `adjust` para permisos, `CSRFProtect` y `lock_request` para solicitudes entre orígenes, `movements` para consultas parametrizadas, `login` para autenticación y `quote` para la consulta al proveedor fijo. El renderizado de conceptos se compara en `MovementList`, dentro de [WalletApp.tsx](../frontend/src/wallet/WalletApp.tsx): el modo de enseñanza interpreta HTML deliberadamente y el corregido muestra texto. El [ejecutor](../lab/runner.py) mantiene separados el estado de una ejecución, sus resultados y la conservación de evidencias.
+
 ## Evidencias y resultados
 
-La tabla registra el resultado que debe observarse en cada versión. **Pendiente de integración** significa que aún no se incorporó al informe una ejecución completa y verificable de las doce observaciones; no significa que la protección haya fallado. Una prueba con error de entorno, precondiciones incumplidas o tiempo agotado debe marcarse como inconclusa.
+La ejecución definitiva `000c0cb404874efcbacac65a876213c1`, iniciada desde la guía sobre las dos billeteras visibles, completó las doce observaciones con el comportamiento esperado. El JSON y las capturas antes/después se conservan en [la carpeta de evidencia](../evidencias/ejecucion-final/result.json). Una prueba con error de entorno, precondiciones incumplidas o tiempo agotado se marca como inconclusa; los intentos anteriores se conservaron con sus estados reales.
 
 | Caso | Evidencia esperada en vulnerable | Resultado | Evidencia esperada en corregida | Resultado |
 |---|---|---|---|---|
-| Autorización administrativa | Usuario sin rol cambia un saldo ficticio. | Pendiente de integración | Respuesta de acceso denegado y saldo sin cambios. | Pendiente de integración |
-| CSRF | Formulario del origen de demostración produce una transferencia. | Pendiente de integración | Solicitud rechazada y ningún movimiento nuevo. | Pendiente de integración |
-| XSS persistente | Un marcador inocuo se activa en el navegador de la cuenta receptora. | Pendiente de integración | El concepto se muestra como texto y el marcador no se activa. | Pendiente de integración |
-| Inyección SQL | La búsqueda devuelve un conjunto alterado respecto del filtro normal. | Pendiente de integración | El texto se trata como dato y no amplía el acceso. | Pendiente de integración |
-| Autenticación | Respuestas distintas y ausencia de limitación en el umbral del ejercicio. | Pendiente de integración | Respuesta uniforme y limitación verificable. | Pendiente de integración |
-| SSRF | La consulta devuelve el marcador del servicio interno ficticio. | Pendiente de integración | El destino interno se rechaza y el servicio no recibe la consulta. | Pendiente de integración |
+| Autorización administrativa | Usuario sin rol cambia un saldo ficticio. | Reproducido | Respuesta de acceso denegado y saldo sin cambios. | Verificado |
+| CSRF | Formulario del origen de demostración produce una transferencia. | Reproducido | Solicitud rechazada y ningún movimiento nuevo. | Verificado |
+| XSS persistente | Un marcador inocuo se activa en el navegador de la cuenta receptora. | Reproducido | El concepto se muestra como texto y el marcador no se activa. | Verificado |
+| Inyección SQL | La búsqueda devuelve un conjunto alterado respecto del filtro normal. | Reproducido | El texto se trata como dato y no amplía el acceso. | Verificado |
+| Autenticación | Respuestas distintas y ausencia de limitación en el umbral del ejercicio. | Reproducido | Respuesta uniforme y limitación verificable. | Verificado |
+| SSRF | La consulta devuelve el marcador del servicio interno ficticio. | Reproducido | El destino interno se rechaza y el servicio no recibe la consulta. | Verificado |
 
-Se ejecutaron 20 pruebas de backend, guía y pasarela con el entorno Python actualizado. La coordinación informó que la interfaz compila y supera la comprobación de tipos; estas comprobaciones no reemplazan la ejecución completa de navegador y contenedores. La comprobación de configuración de Compose tampoco demuestra por sí misma el aislamiento efectivo o el funcionamiento de los servicios.
+Se aprobaron 21 pruebas de backend, guía y pasarela con el entorno Python actualizado, incluidas concurrencia, invalidación de sesiones, reinicio parcial, cancelación, timeout de un proceso real y rechazo de un importe de formulario con 5000 dígitos. La interfaz compiló con comprobación de tipos. La revisión en Chromium cubrió 22 combinaciones de pantalla/tamaño a 1440 px y 390 px, ocho comprobaciones de foco visible y ausencia de errores JavaScript no controlados. Su [reporte visual](../evidencias/visual/report.json) distingue los 401 esperados al cargar una sesión anónima y el error de login simulado exclusivamente para revisar esa vista; el lote de seguridad utiliza peticiones reales.
+
+En una billetera abierta se observó el cambio de 100000 a 105000 centavos sin recargar. El restablecimiento recuperó los saldos, invalidó esa sesión y preservó los informes. La cancelación iniciada desde la guía (`8765110ce3bb4dc2ab39258d3058b2b3`) terminó como cancelada/inconclusa y no dejó procesos Chromium. Se ensayó un arranque completo con `--no-build --pull never --wait`; el ejecutor sólo tiene la red interna y no dispone de una ruta de salida por defecto. La pasarela mantiene publicados exclusivamente los cuatro puertos locales.
 
 Se auditó el archivo de versiones Python fijadas con `pip-audit 2.10.1`. Inicialmente se identificaron avisos en Flask, pytest y requests; se actualizaron a las versiones corregidas 3.1.3, 9.0.3 y 2.33.0, respectivamente. Una segunda auditoría del archivo actualizado no encontró vulnerabilidades conocidas en las versiones consultadas. El archivo fija versiones, pero no incorpora hashes de paquetes. Este análisis no cubrió paquetes del sistema operativo, la imagen base ni Chromium, y su resultado depende de los avisos disponibles al momento de la consulta.
 

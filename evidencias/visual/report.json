@@ -1,0 +1,262 @@
+{
+  "guide": "http://localhost:5002",
+  "wallets": {
+    "vulnerable": "http://localhost:5000",
+    "secure": "http://localhost:5001"
+  },
+  "viewports": {
+    "desktop": {
+      "width": 1440,
+      "height": 1000
+    },
+    "mobile": {
+      "width": 390,
+      "height": 844
+    }
+  },
+  "layouts": {
+    "guide-desktop-top": {
+      "viewport": 1440,
+      "document": 1440,
+      "body": 1440,
+      "horizontal_overflow": false
+    },
+    "guide-desktop-practice": {
+      "viewport": 1440,
+      "document": 1440,
+      "body": 1440,
+      "horizontal_overflow": false
+    },
+    "guide-desktop-evidence": {
+      "viewport": 1440,
+      "document": 1440,
+      "body": 1440,
+      "horizontal_overflow": false
+    },
+    "guide-mobile-top": {
+      "viewport": 390,
+      "document": 390,
+      "body": 390,
+      "horizontal_overflow": false
+    },
+    "guide-mobile-practice": {
+      "viewport": 390,
+      "document": 390,
+      "body": 390,
+      "horizontal_overflow": false
+    },
+    "guide-mobile-evidence": {
+      "viewport": 390,
+      "document": 390,
+      "body": 390,
+      "horizontal_overflow": false
+    },
+    "wallet-vulnerable-desktop-overview": {
+      "viewport": 1440,
+      "document": 1440,
+      "body": 1440,
+      "horizontal_overflow": false
+    },
+    "wallet-vulnerable-desktop-transfers": {
+      "viewport": 1440,
+      "document": 1440,
+      "body": 1440,
+      "horizontal_overflow": false
+    },
+    "wallet-vulnerable-desktop-activity": {
+      "viewport": 1440,
+      "document": 1440,
+      "body": 1440,
+      "horizontal_overflow": false
+    },
+    "wallet-vulnerable-desktop-quotes": {
+      "viewport": 1440,
+      "document": 1440,
+      "body": 1440,
+      "horizontal_overflow": false
+    },
+    "wallet-vulnerable-mobile-overview": {
+      "viewport": 390,
+      "document": 390,
+      "body": 390,
+      "horizontal_overflow": false
+    },
+    "wallet-vulnerable-mobile-transfers": {
+      "viewport": 390,
+      "document": 390,
+      "body": 390,
+      "horizontal_overflow": false
+    },
+    "wallet-vulnerable-mobile-activity": {
+      "viewport": 390,
+      "document": 390,
+      "body": 390,
+      "horizontal_overflow": false
+    },
+    "wallet-vulnerable-mobile-quotes": {
+      "viewport": 390,
+      "document": 390,
+      "body": 390,
+      "horizontal_overflow": false
+    },
+    "wallet-secure-desktop-overview": {
+      "viewport": 1440,
+      "document": 1440,
+      "body": 1440,
+      "horizontal_overflow": false
+    },
+    "wallet-secure-desktop-transfers": {
+      "viewport": 1440,
+      "document": 1440,
+      "body": 1440,
+      "horizontal_overflow": false
+    },
+    "wallet-secure-desktop-activity": {
+      "viewport": 1440,
+      "document": 1440,
+      "body": 1440,
+      "horizontal_overflow": false
+    },
+    "wallet-secure-desktop-quotes": {
+      "viewport": 1440,
+      "document": 1440,
+      "body": 1440,
+      "horizontal_overflow": false
+    },
+    "wallet-secure-mobile-overview": {
+      "viewport": 390,
+      "document": 390,
+      "body": 390,
+      "horizontal_overflow": false
+    },
+    "wallet-secure-mobile-transfers": {
+      "viewport": 390,
+      "document": 390,
+      "body": 390,
+      "horizontal_overflow": false
+    },
+    "wallet-secure-mobile-activity": {
+      "viewport": 390,
+      "document": 390,
+      "body": 390,
+      "horizontal_overflow": false
+    },
+    "wallet-secure-mobile-quotes": {
+      "viewport": 390,
+      "document": 390,
+      "body": 390,
+      "horizontal_overflow": false
+    }
+  },
+  "focus": {
+    "guide-desktop": {
+      "tag": "A",
+      "label": "Abrir billetera",
+      "outline_style": "solid",
+      "outline_width": "3px",
+      "focus_visible": true
+    },
+    "guide-desktop-dialog": {
+      "tag": "BUTTON",
+      "label": "Restablecer ambas",
+      "outline_style": "solid",
+      "outline_width": "3px",
+      "focus_visible": true
+    },
+    "guide-mobile": {
+      "tag": "A",
+      "label": "Abrir billetera",
+      "outline_style": "solid",
+      "outline_width": "3px",
+      "focus_visible": true
+    },
+    "guide-mobile-dialog": {
+      "tag": "BUTTON",
+      "label": "Restablecer ambas",
+      "outline_style": "solid",
+      "outline_width": "3px",
+      "focus_visible": true
+    },
+    "wallet-vulnerable-login": {
+      "tag": "A",
+      "label": "Umbral, inicio",
+      "outline_style": "solid",
+      "outline_width": "3px",
+      "focus_visible": true
+    },
+    "wallet-vulnerable-dashboard": {
+      "tag": "A",
+      "label": "Umbral, inicio",
+      "outline_style": "solid",
+      "outline_width": "3px",
+      "focus_visible": true
+    },
+    "wallet-secure-login": {
+      "tag": "A",
+      "label": "Umbral, inicio",
+      "outline_style": "solid",
+      "outline_width": "3px",
+      "focus_visible": true
+    },
+    "wallet-secure-dashboard": {
+      "tag": "A",
+      "label": "Umbral, inicio",
+      "outline_style": "solid",
+      "outline_width": "3px",
+      "focus_visible": true
+    }
+  },
+  "login_error_ui": {
+    "vulnerable": "Credenciales inválidas",
+    "secure": "Credenciales inválidas"
+  },
+  "console_errors": [],
+  "page_errors": [],
+  "screenshots": [
+    "guide-desktop-evidence.png",
+    "guide-desktop-practice.png",
+    "guide-desktop.png",
+    "guide-mobile-evidence.png",
+    "guide-mobile-practice.png",
+    "guide-mobile.png",
+    "wallet-secure-activity.png",
+    "wallet-secure-desktop.png",
+    "wallet-secure-login-error.png",
+    "wallet-secure-mobile.png",
+    "wallet-secure-quotes.png",
+    "wallet-secure-transfers.png",
+    "wallet-vulnerable-activity.png",
+    "wallet-vulnerable-desktop.png",
+    "wallet-vulnerable-login-error.png",
+    "wallet-vulnerable-mobile.png",
+    "wallet-vulnerable-quotes.png",
+    "wallet-vulnerable-transfers.png"
+  ],
+  "failures": [],
+  "expected_auth_console": [
+    {
+      "path": "/api/me",
+      "status": 401
+    },
+    {
+      "path": "/api/auth/login",
+      "status": 401
+    },
+    {
+      "path": "/api/me",
+      "status": 401
+    },
+    {
+      "path": "/api/me",
+      "status": 401
+    },
+    {
+      "path": "/api/auth/login",
+      "status": 401
+    },
+    {
+      "path": "/api/me",
+      "status": 401
+    }
+  ]
+}

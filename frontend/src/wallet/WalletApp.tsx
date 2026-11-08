@@ -460,9 +460,10 @@ function WalletShell({
             type="button"
             className={"mobile-nav-item " + (view === item.id ? "mobile-nav-active" : "")}
             aria-current={view === item.id ? "page" : undefined}
+            aria-label={item.label}
             onClick={() => setView(item.id)}
           >
-            {item.label === "Administración" ? "Admin" : item.label}
+            {item.id === "transfers" ? "Transferir" : item.id === "admin" ? "Admin" : item.label}
           </button>
         ))}
       </nav>

@@ -20,6 +20,14 @@ La página atacante CSRF local está en <http://localhost:5003> y se usa desde e
 
 La primera instalación descarga imágenes y dependencias. Luego el laboratorio funciona localmente sin consultar servicios externos: las cotizaciones y el servicio interno son fixtures ficticios en la red privada de Docker.
 
+Después de la primera construcción, podés iniciar todo en segundo plano sin recompilar ni descargar imágenes:
+
+```powershell
+docker compose up -d --no-build --pull never --wait
+```
+
+`docker compose stop` detiene el laboratorio y conserva datos e informes. Para preparar otro ejercicio, usá **Restablecer ambas versiones** en la guía: recupera las cuentas iniciales y cierra las sesiones; los informes y capturas anteriores se conservan.
+
 ## Cuentas de demostración
 
 | Usuario | Contraseña | Rol |
@@ -63,6 +71,28 @@ npm run build
 ```
 
 Las pruebas de navegador CSRF y XSS se implementan en `tests_browser/scenarios.py` y se ejecutan desde el runner del laboratorio, no desde la interfaz cliente.
+
+## Verificación entregada
+
+Se aprobaron 21 pruebas de backend, control de ejecuciones y pasarela, junto con las 12 observaciones del lote completo en Chromium. La revisión visual cubrió escritorio y celular de 390 px, sin desbordamientos ni errores JavaScript y con foco de teclado visible. Se comprobó el cambio de saldo en una billetera abierta sin recargar, el cierre de sesión al restablecer y la cancelación sin dejar navegadores ejecutándose.
+
+El [informe técnico](docs/INFORME.md) explica resultados y límites. Las evidencias del lote definitivo están en `evidencias/ejecucion-final/result.json` y las capturas/reportes de interfaz en `evidencias/visual/`.
+
+Para repetir la revisión visual, sin una ejecución de ejercicios activa:
+
+```powershell
+docker compose exec -T lab python -m tests_browser.visual_smoke --output /state/visual
+```
+
+Para ejecutar las pruebas de backend y del coordinador en Windows, desde esta carpeta con Python 3.13:
+
+```powershell
+python -m venv .venv
+.\.venv\Scripts\python.exe -m pip install -r requirements.lock.txt
+.\.venv\Scripts\python.exe -m pytest tests -q --basetemp .test-tmp-local
+```
+
+La comprobación de error de login de ese script simula únicamente la respuesta 401 para revisar el mensaje de la interfaz; las demostraciones de autenticación del lote usan respuestas reales del servidor.
 
 ## Estructura
 

@@ -6,7 +6,7 @@ Todas las respuestas son JSON. Los errores tienen `{ "error": "mensaje" }` y có
 
 - `GET /api/meta` → `{ "variant": "vulnerable" | "secure" }`.
 - `GET /api/csrf-token` → `{ "token": "..." }`; conservar cookie. La versión segura exige `X-CSRF-Token` en todas las mutaciones; acepta también campo de formulario `csrf_token`.
-- `POST /api/auth/register` `{username,password}` → `{user}`; `POST /api/auth/login` igual; `POST /api/auth/logout` → `{ok:true}`.
+- `POST /api/auth/register` `{username,password}` → `{user:{username}}` (201). Crea una cuenta de saldo cero; después se inicia sesión normalmente. `POST /api/auth/login` recibe las mismas credenciales y devuelve `{user:{id,username,role,balance_cents}}`; `POST /api/auth/logout` → `{ok:true}`.
 - `GET /api/me` → `{user:{id,username,role,balance_cents}}`; sin sesión: 401.
 - `GET /api/movements?q=texto` → `{movements:[{id, sender, recipient, amount_cents, concept, created_at}]}`.
 - `POST /api/transfers` JSON o formulario `{recipient,amount_cents,concept}` → `{ok:true}`.
@@ -17,7 +17,9 @@ Todas las respuestas son JSON. Los errores tienen `{ "error": "mensaje" }` y có
 
 `GET /lab/api/csrf-token` → `{token}`; `POST` exige `X-CSRF-Token` y Origin de la guía. `GET /lab/api/status` → `{active,needs_reset,variants,credentials}`. `POST /lab/api/reset` `{}` restablece ambas; devuelve `{status,variants}`. Una respuesta `partial` impide ejecutar hasta restablecer ambas.
 
-`POST /lab/api/runs` `{case_id, reset_first}` acepta `access-control`, `csrf`, `xss`, `sqli`, `authentication`, `ssrf`; inicia trabajo → `{id,status}`. `GET /lab/api/runs/{id}` devuelve `{id,case_id,status,results,error}`; cada resultado `{variant,outcome,evidence}` con outcome `attack_reproduced`, `blocked`, `unexpected`, `inconclusive`. `POST /lab/api/runs/{id}/cancel` solicita cancelación. `GET /lab/api/runs` devuelve los últimos diez trabajos. Sólo una ejecución o reset activo; 409 si ocupado.
+`POST /lab/api/runs` `{case_id, reset_first}` acepta `access-control`, `csrf`, `xss`, `sqli`, `authentication`, `ssrf` o `all`; inicia trabajo (202) → `{id,status}`. `all` verifica ambas versiones y restablece sus datos antes de cada ejercicio (12 observaciones). Una prueba individual conserva los datos al terminar y requiere un reinicio explícito antes de la siguiente.
+
+`GET /lab/api/runs/{id}` devuelve `{id,case_id,status,current,results,error,created_at,finished_at}`; cada resultado `{case_id,variant,outcome,evidence}` con outcome `attack_reproduced`, `blocked`, `unexpected`, `inconclusive`. `POST /lab/api/runs/{id}/cancel` solicita cancelación. `GET /lab/api/runs` devuelve `{runs:[...]}` con los últimos diez trabajos. Las imágenes se sirven como PNG mediante `/lab/artifacts/{id}/{case_id}-{variant}/{before|after}.png`. Sólo una ejecución o reset activo; 409 si está ocupado o falta restablecer datos. Un reinicio parcial o fallido devuelve 503 con el estado de cada versión.
 
 El canal de control de cada backend escucha el puerto interno 9001, no publicado. `POST /internal/reset` recibe `{operation_id}` con UUID y `Authorization: Bearer <token>`; devuelve `{ok:true,generation,operation_id}`. Repetir el mismo identificador es idempotente. `GET /internal/status` con el mismo token informa `{ok:true,generation,operation_id}` para aclarar una respuesta perdida. La guía guarda resultados por separado: un reinicio completo de una instancia y un fallo en la otra producen estado parcial, no rollback distribuido; se debe reintentar el restablecimiento completo antes de otra prueba. La exclusión con transacciones activas se limita a un proceso por instancia y espera hasta diez segundos.
 

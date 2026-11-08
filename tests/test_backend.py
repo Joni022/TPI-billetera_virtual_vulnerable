@@ -40,6 +40,21 @@ def test_transfer_and_access_control(wallet):
     assert client.get('/api/me').json['user']['balance_cents'] == 99850
 
 
+def test_transfer_rejects_oversized_form_amount_without_changes(wallet):
+    client = wallet.test_client()
+    login(client)
+    before = client.get('/api/me').json['user']['balance_cents']
+    response = client.post('/api/transfers', data={
+        'recipient': 'bruno', 'amount_cents': '9' * 5000,
+        'concept': 'prueba', 'csrf_token': token(client),
+    })
+    assert response.status_code == 400
+    assert client.get('/api/me').json['user']['balance_cents'] == before
+    with wallet.connect_db() as db:
+        assert db.execute("SELECT balance_cents FROM users WHERE username='bruno'").fetchone()[0] == 100000
+        assert db.execute('SELECT COUNT(*) FROM transfers').fetchone()[0] == 0
+
+
 def test_login_limit_and_uniform_errors(wallet):
     client = wallet.test_client()
     csrf = token(client)
