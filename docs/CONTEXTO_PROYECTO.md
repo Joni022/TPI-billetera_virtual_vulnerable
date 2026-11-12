@@ -97,6 +97,8 @@ Funciones y módulos pueden moverse: buscar por nombre y confirmar líneas antes
 
 ## 7. Guías disponibles y cuál usar
 
+Para la exposición breve de roles y SQLi se agregaron `GUION_ORAL_ROLES_SQLI.md` y `EXPLICACION_ESTUDIO_ROLES_SQLI.md`: separan el texto oral de la teoría y aclaran la preparación independiente de cada demostración. Se contrastaron referencias y contenido con el código; no se ejecutaron pruebas nuevas al redactarlos.
+
 | Archivo | Uso recomendado |
 | --- | --- |
 | [GUIA_EXPOSICION_ROLES_SQLI_XSS.md](GUIA_EXPOSICION_ROLES_SQLI_XSS.md) | Guía más reciente y exhaustiva para exponer autorización, SQLi y XSS. Incluye pasos, HTTP, F12, explicación del código, resultados, controles positivos, guiones y preguntas posibles. Aproximadamente 9.200 palabras. |
@@ -143,7 +145,7 @@ El formulario actual tiene bruno como destinatario fijo y 2500 centavos de impor
 
 Autorización: con Ana, ajuste de +5000 centavos. Vulnerable responde 200 y saldo 100000 → 105000. Corregida responde 403 y conserva 100000, siempre que la sesión y el token sean válidos. La cuenta admin debe conservar el funcionamiento legítimo. Ocultar la navegación administrativa no es suficiente.
 
-SQLi: preparar un movimiento propio y otro reservado de admin a Bruno antes de entrar con Ana. La guía contiene la búsqueda de prueba exacta. En vulnerable debe aparecer la fila ajena conocida; en corregida la búsqueda se interpreta como texto. Una respuesta 200 o un error SQL por sí solos no bastan para demostrar el defecto ni la defensa.
+SQLi: preparar un movimiento propio y otro reservado de admin a Bruno antes de entrar con Ana. La guía contiene la búsqueda de prueba exacta. En vulnerable debe aparecer la fila ajena conocida; en corregida la búsqueda se interpreta como texto. Una respuesta 200 o un error SQL por sí solos no bastan para demostrar el defecto ni la defensa. La búsqueda vulnerable de Actividad devuelve el detalle de SQLite con estado 400 como indicio didáctico; los demás errores de base conservan el tratamiento genérico. Validación del 12 de noviembre: 27 pruebas Python aprobadas, compilación Docker con TypeScript y Vite correcta, y comprobación en Chromium de búsquedas normales, comilla, aislamiento del detalle en Actividad, limpieza y payload con fila ajena sólo en vulnerable. Se revisaron capturas de 1440 y 390 px sin desbordamiento y se restablecieron ambas instancias. Informe y cuatro capturas en `output/playwright/activity-sql-error-review/`.
 
 XSS: Ana envía a Bruno una transferencia de $1 con el concepto de marcador inocuo que está en la guía y en tests_browser/scenarios.py. El servidor guarda el concepto; la ejecución sucede al interpretarlo como HTML en el navegador. Puede activarse ya en Resumen/Actividad reciente, porque se reutiliza MovementList.
 
@@ -257,6 +259,10 @@ La guía de la aplicación incorpora recorridos manuales detallados para los sei
 
 Actualizarlo después de una decisión importante, cambio de arquitectura, corrección del pendiente o nueva validación relevante. Registrar fecha y evidencia; distinguir propuesto, implementado y comprobado. Las configuraciones y el código siguen siendo la fuente para versiones, rutas y comportamiento actuales. Conservar las guías completas como referencia de exposición y usar este archivo para orientarse al retomar.
 
+## Guion de presentación general y XSS — 12 de noviembre de 2026
+
+Se agregó [GUION_ORAL_PRESENTACION_XSS.md](GUION_ORAL_PRESENTACION_XSS.md), con presentación general, guion de XSS, preparación, referencias y capturas de respaldo. Se cotejó el concepto con el fixture y las referencias con el código; esta edición documental no ejecutó ataques ni modificó la aplicación.
+
 ## Ampliación documental de identificación desde la web — 12 de noviembre de 2026
 
 La guía de roles, SQLi y XSS agrega recorridos que parten de la interfaz y F12, separan observación, sospecha y prueba, y conservan controles legítimos. Incluye el descubrimiento de la solicitud administrativa mediante una preparación autorizada, la comparación SQLi con filas conocidas y la progresión de texto inocuo a marcador XSS. Se contrastaron nombres de interfaz y referencias pertinentes con el código actual. Esta edición es documental: no constituye una nueva ejecución de ataques ni modifica la evidencia conservada.
@@ -270,3 +276,10 @@ Se corrigió la captura posterior de CSRF: la espera anterior no verificaba corr
 Validación nueva: 25 pruebas Python aprobadas; construcción del servicio `lab` correcta; lote `fe59124bc57a448eaa63773d9602f6c2` completado con seis `attack_reproduced` y seis `blocked`. Se comprobaron los 24 PNG por HTTP y su integridad, y las fases y descripciones de los doce pares. En CSRF vulnerable se observó el saldo de Ana de $1.000 a $975 y el movimiento de $25 en la captura posterior. Los dos pares idénticos corresponden a autorización y CSRF en la versión corregida, donde el estado visible permaneció igual tras el rechazo.
 
 La revisión de la guía cubrió los seis ejercicios, con resumen y detalle, a 1440 y 390 px, sin errores JavaScript ni desbordamiento horizontal. Se revisaron además capturas de la interfaz de cinco resultados en cada ancho, incluidas las pantallas de SQLi y SSRF. Los 24 PNG de resultados respondieron por HTTP y se comprobó su decodificación y ancho natural; también se verificó la advertencia para capturas históricas sin fase. El restablecimiento final respondió HTTP 200 en ambas versiones y conservó las evidencias. Informes y capturas: `output/playwright/guide-review-compact/` (`ui-report.json`, `batch-result.json`, `capture-audit.json` y `rendered-images-report.json`). Estas comprobaciones no resuelven el pendiente del candado del runner descrito en la sección 11.
+
+
+## Refactor pedagógico de variantes — 12 de noviembre de 2026
+
+Se reorganizaron las ramas del backend para mostrar por separado la variante vulnerable y la corregida, sin cambios funcionales previstos. `teaching` se fija al crear la aplicación; en roles, la rama vulnerable devuelve el usuario autenticado sin comprobar el rol y la corregida realiza ese control. Se mantienen el registro y orden de Flask-WTF, su configuración y los overrides, así como los controles existentes de autenticación y SSRF. Las guías Markdown de exposición y estudio se actualizaron al código y sus líneas. Las exportaciones DOCX y PDF anteriores conservan el contenido anterior al refactor y no se regeneraron. Validación posterior al refactor: 25 pruebas pytest aprobadas en 17,50 s. La comparación anterior/posterior cubrió cuatro configuraciones (vulnerable, corregida, corregida con override `WTF_CSRF_ENABLED=False` y corregida con `PROVIDER_URL` personalizado): 30 observaciones de API por configuración, 120 en total, coincidieron en estados HTTP, JSON, saldos, movimientos y contadores; también coincidieron las cinco llamadas al proveedor sumadas. El informe está en `output/playwright/refactor-variantes-review/comparison-report.json`.
+
+La construcción Docker finalizó correctamente. El lote `9f2065b4d66644bbb513d717ed01d00b` terminó `completed` con 12 de 12 resultados esperados: seis `attack_reproduced` y seis `blocked`. Se verificaron la integridad y fases de 24 PNG; los dos pares idénticos corresponden a autorización y CSRF en corregida, donde se esperaba ausencia de cambio visible. El restablecimiento final respondió HTTP 200 en ambas variantes y conservó las evidencias. Los informes `batch-result.json` y `capture-audit.json`, junto con los PNG, están en `output/playwright/refactor-variantes-review/`. La revisión visual final de `evidence-ui-1440-0.png` y `evidence-ui-390-2.png` mostró una disposición legible y los cambios esperados: roles vulnerable de $1.000 a $1.050 y CSRF vulnerable de $1.000 a $975 con el movimiento correspondiente. Esta validación no implica una nueva revisión manual de doce vistas de la interfaz.

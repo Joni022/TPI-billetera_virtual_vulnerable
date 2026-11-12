@@ -1,0 +1,28 @@
+[
+  {
+    "port": 5000,
+    "normal_status": 200,
+    "quote_status": 400,
+    "quote_response": {
+      "error": "Error de base de datos: unrecognized token: \"' ORDER BY t.id DESC\""
+    },
+    "detail_absent_outside_activity": true,
+    "cleared_error": true,
+    "existing_sqli_status": 200,
+    "foreign_row": true,
+    "normal_restored": true
+  },
+  {
+    "port": 5001,
+    "normal_status": 200,
+    "quote_status": 200,
+    "quote_response": {
+      "movements": []
+    },
+    "detail_absent_outside_activity": true,
+    "cleared_error": true,
+    "existing_sqli_status": 200,
+    "foreign_row": false,
+    "normal_restored": true
+  }
+]

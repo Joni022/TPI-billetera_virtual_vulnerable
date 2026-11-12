@@ -1,0 +1,35 @@
+{
+  "equivalent": true,
+  "scenarios": [
+    {
+      "config": {
+        "VARIANT": "vulnerable"
+      },
+      "matching_observations": 30,
+      "matching_provider_calls": 2
+    },
+    {
+      "config": {
+        "VARIANT": "secure"
+      },
+      "matching_observations": 30,
+      "matching_provider_calls": 1
+    },
+    {
+      "config": {
+        "VARIANT": "secure",
+        "WTF_CSRF_ENABLED": false
+      },
+      "matching_observations": 30,
+      "matching_provider_calls": 1
+    },
+    {
+      "config": {
+        "VARIANT": "secure",
+        "PROVIDER_URL": "http://quote-provider:8080/configured"
+      },
+      "matching_observations": 30,
+      "matching_provider_calls": 1
+    }
+  ]
+}

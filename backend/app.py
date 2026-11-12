@@ -39,16 +39,22 @@ def create_app(config=None):
     app._variant = app.config['VARIANT']
     if app._variant not in ('vulnerable', 'secure'):
         raise ValueError('VARIANT debe ser vulnerable o secure')
+    # Selector de variante fijado al crear la aplicación, no por cada petición.
     teaching = app._variant == 'vulnerable'
-    # Intentionally absent only in the isolated teaching instance (exercise CSRF).
     if teaching:
+        # En el ejercicio vulnerable no se exige el token CSRF.
         app.config['WTF_CSRF_ENABLED'] = False
+    else:
+        # La variante corregida conserva la configuración de Flask-WTF o el
+        # override explícito recibido en create_app.
+        pass
     dbpath = Path(app.config['DATABASE'])
     dbpath.parent.mkdir(parents=True, exist_ok=True)
     cache_dir = Path(app.config.get('SESSION_DIR', str(dbpath.parent / 'sessions')))
     cache_dir.mkdir(parents=True, exist_ok=True)
     app.config['SESSION_CACHELIB'] = FileSystemCache(cache_dir=str(cache_dir), threshold=500)
     Session(app)
+    # Registrar en ambas variantes conserva la extensión y su orden antes de Origin.
     csrf = CSRFProtect(app)
 
     @contextmanager
@@ -118,8 +124,12 @@ def create_app(config=None):
         lock.acquire()
         g.wallet_lock_acquired = True
         origin = request.headers.get('Origin')
-        if not teaching and request.path.startswith('/api/') and request.method in ('POST', 'PUT', 'PATCH', 'DELETE') and origin and origin != request.host_url.rstrip('/'):
-            return jsonify(error='Origen no permitido'), 403
+        if teaching:
+            # La variante vulnerable omite también el control de Origin.
+            return
+        else:
+            if request.path.startswith('/api/') and request.method in ('POST', 'PUT', 'PATCH', 'DELETE') and origin and origin != request.host_url.rstrip('/'):
+                return jsonify(error='Origen no permitido'), 403
 
     @app.teardown_request
     def unlock_request(_error):
@@ -167,10 +177,14 @@ def create_app(config=None):
         user = current_user()
         if user is None:
             abort(401)
-        # Deliberately missing function-level authorization in the teaching app.
-        if admin and not teaching and user['role'] != 'admin':
-            abort(403)
-        return user
+        if teaching:
+            # Vulnerable: autentica, pero omite la autorización por rol.
+            return user
+        else:
+            # Corregida: las operaciones administrativas exigen ese rol.
+            if admin and user['role'] != 'admin':
+                abort(403)
+            return user
 
     @app.errorhandler(401)
     def unauthorized(_error):
@@ -212,16 +226,23 @@ def create_app(config=None):
         with connect() as db:
             db.execute('DELETE FROM login_attempts WHERE at < ?', (now-60,))
             counts = [db.execute('SELECT COUNT(*) FROM login_attempts WHERE identity=?', (identity,)).fetchone()[0] for identity in identities]
-            if not teaching and (counts[0] >= 20 or counts[1] >= 5):
-                return jsonify(error='Demasiados intentos'), 429, {'Retry-After':'60'}
-            if not teaching:
+            if teaching:
+                # Vulnerable: no limita ni registra intentos nuevos.
+                pass
+            else:
+                # Corregida: limita y registra tanto por IP como por cuenta.
+                if counts[0] >= 20 or counts[1] >= 5:
+                    return jsonify(error='Demasiados intentos'), 429, {'Retry-After':'60'}
                 db.executemany('INSERT INTO login_attempts VALUES(?,?)', [(identity, now) for identity in identities])
             user = db.execute('SELECT * FROM users WHERE username=?', (username,)).fetchone()
             good = check_password_hash(user['password_hash'] if user else DUMMY_HASH, password)
             if not user or not good:
                 if teaching:
+                    # Vulnerable: distingue usuario inexistente de contraseña incorrecta.
                     return jsonify(error='Contraseña incorrecta' if user else 'El usuario no existe'), 401
-                return jsonify(error='Credenciales inválidas'), 401
+                else:
+                    # Corregida: responde igual en ambos casos.
+                    return jsonify(error='Credenciales inválidas'), 401
             generation = db.execute('SELECT generation FROM settings WHERE id=1').fetchone()[0]
         session.clear()
         session['user_id'] = user['id']
@@ -250,8 +271,8 @@ def create_app(config=None):
                 # SQLi sink is confined to this one educational search endpoint.
                 try:
                     rows = db.execute(select + f"WHERE (t.sender_id={user['id']} OR t.recipient_id={user['id']}) AND t.concept LIKE '%{q}%' ORDER BY t.id DESC").fetchall()
-                except sqlite3.Error:
-                    return jsonify(error='La búsqueda no es válida'), 400
+                except sqlite3.Error as error:
+                    return jsonify(error=f'Error de base de datos: {error}'), 400
             else:
                 rows = db.execute(select + 'WHERE (t.sender_id=? OR t.recipient_id=?) AND t.concept LIKE ? ORDER BY t.id DESC',
                     (user['id'], user['id'], '%'+q+'%')).fetchall()
@@ -319,8 +340,11 @@ def create_app(config=None):
             if not contained:
                 return jsonify(error='Destino fuera del laboratorio'), 400
             destination = supplied
-        elif supplied != PROVIDER:
-            return jsonify(error='Proveedor no permitido'), 400
+        else:
+            # Corregida: sólo acepta el proveedor previsto y usa el destino
+            # configurado por el servidor, no el valor recibido en la petición.
+            if supplied != PROVIDER:
+                return jsonify(error='Proveedor no permitido'), 400
         try:
             with requests.Session() as client:
                 client.trust_env = False
@@ -339,8 +363,13 @@ def create_app(config=None):
                             raise ValueError('response too large')
                     import json
                     result = json.loads(body)
-                    if not teaching and (not isinstance(result,dict) or result.get('currency') != 'USD' or type(result.get('rate_cents')) is not int or not 0 < result['rate_cents'] <= 100000000):
-                        raise ValueError('invalid quote')
+                    if teaching:
+                        # Vulnerable: devuelve el JSON recibido sin validar su formato.
+                        pass
+                    else:
+                        # Corregida: sólo acepta una cotización USD válida.
+                        if not isinstance(result,dict) or result.get('currency') != 'USD' or type(result.get('rate_cents')) is not int or not 0 < result['rate_cents'] <= 100000000:
+                            raise ValueError('invalid quote')
             return jsonify(result=result)
         except (requests.RequestException, ValueError):
             return jsonify(error='Proveedor no disponible'), 502

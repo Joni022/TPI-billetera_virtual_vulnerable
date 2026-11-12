@@ -207,12 +207,17 @@ def require_user(admin=False):
     user = current_user()
     if user is None:
         abort(401)
-    if admin and not teaching and user['role'] != 'admin':
-        abort(403)
-    return user
+    if teaching:
+        # Vulnerable: autentica, pero omite la autorización por rol.
+        return user
+    else:
+        # Corregida: las operaciones administrativas exigen ese rol.
+        if admin and user['role'] != 'admin':
+            abort(403)
+        return user
 ```
 
-`teaching` es verdadero para la instancia vulnerable. Entonces `not teaching` es falso y se omite el rechazo por rol. La función devuelve a Ana aunque `admin=True`. La ruta continúa y valida los datos del ajuste: tipos enteros, variación no nula, razón de longitud permitida y saldo resultante no negativo.
+`teaching` es verdadero para la instancia vulnerable. La rama `if teaching` devuelve a Ana sin comprobar su rol, aunque `admin=True`. En la rama `else`, la corregida comprueba el requisito administrativo y el rol. La ruta que continúa valida los datos del ajuste: tipos enteros, variación no nula, razón de longitud permitida y saldo resultante no negativo.
 
 El cambio se ejecuta mediante un UPDATE con parámetros y se guarda un registro en `adjustments`, dentro de una transacción. El SQL del ajuste no es la falla de este ejercicio. La falla ocurrió antes: un usuario sin permiso alcanzó una función administrativa válida.
 
@@ -650,7 +655,7 @@ No uses `Ana` como si fuera necesariamente equivalente a `ana`: la búsqueda act
 
 ### Recorrido de una solicitud válida en formato
 
-`login()` toma el JSON, comprueba que usuario y contraseña sean cadenas y limita sus longitudes. En la corregida construye dos identidades de control: la dirección `request.remote_addr` y el nombre de cuenta convertido a minúsculas. Elimina registros anteriores a 60 segundos y cuenta los intentos de ambas identidades.
+`login()` toma el JSON, comprueba que usuario y contraseña sean cadenas y limita sus longitudes. En ambas variantes construye dos identidades de control: la dirección `request.remote_addr` y el nombre de cuenta convertido a minúsculas. Elimina registros anteriores a 60 segundos y cuenta los intentos de ambas identidades.
 
 ```python
 identities = (
@@ -658,13 +663,15 @@ identities = (
     'account:' + username.lower()
 )
 # counts[0] corresponde a IP y counts[1] a cuenta.
-if not teaching and (counts[0] >= 20 or counts[1] >= 5):
-    return jsonify(error='Demasiados intentos'), 429, {
-        'Retry-After': '60'
-    }
+if teaching:
+    pass  # No limita ni registra intentos nuevos.
+else:
+    if counts[0] >= 20 or counts[1] >= 5:
+        return jsonify(error='Demasiados intentos'), 429, {'Retry-After':'60'}
+    db.executemany('INSERT INTO login_attempts VALUES(?,?)', [(identity, now) for identity in identities])
 ```
 
-Si ya se alcanzó alguno de los umbrales, rechaza la nueva solicitud antes de comprobar la contraseña. Un rechazo 429 no agrega otro intento. Si la solicitud sigue, registra un intento para la cuenta y otro para la IP. Se contabilizan los intentos admitidos por el control, incluidos los exitosos; un login exitoso no limpia el historial de esa ventana.
+En la corregida, si ya se alcanzó alguno de los umbrales, rechaza la nueva solicitud antes de comprobar la contraseña. Un rechazo 429 no agrega otro intento. Si la solicitud sigue, registra un intento para la cuenta y otro para la IP. Se contabilizan los intentos admitidos por el control, incluidos los exitosos; un login exitoso no limpia el historial de esa ventana.
 
 ### Qué información revela el modo vulnerable
 
@@ -675,7 +682,8 @@ if teaching:
     return jsonify(error=(
         'Contraseña incorrecta' if user else 'El usuario no existe'
     )), 401
-return jsonify(error='Credenciales inválidas'), 401
+else:
+    return jsonify(error='Credenciales inválidas'), 401
 ```
 
 Aunque ambos estados sean 401, el cuerpo permite saber si el nombre corresponde a una cuenta. Esa diferencia es la enumeración demostrada. La vulnerable tampoco registra ni aplica el límite del caso, de modo que las repeticiones continúan llegando a la comprobación de contraseña.

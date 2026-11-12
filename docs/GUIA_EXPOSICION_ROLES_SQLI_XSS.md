@@ -173,29 +173,29 @@ El saldo se refresca periódicamente. No repetir el POST exitoso: sumaría otros
 
 ### Recorrido por el código y HTTP
 
-1. `current_user()` obtiene el ID de la sesión, comprueba la generación y consulta el usuario y rol en SQLite ([backend/app.py, líneas 154–164](<C:/Users/jonat/Documents/ChatGPT/Seguridad en el Desarrollo de Software/tpi-billetera/backend/app.py:154>)). El rol no se acepta como dato enviado por el cliente.
-2. `require_user(admin=False)` responde **401** si no hay sesión válida. En la variante corregida, si se pide administración y el rol no es `admin`, responde **403**. La variante didáctica omite esa segunda verificación por la condición `not teaching`, pero aún exige sesión ([líneas 166–173](<C:/Users/jonat/Documents/ChatGPT/Seguridad en el Desarrollo de Software/tpi-billetera/backend/app.py:166>)).
-3. `GET /api/admin/users` y `POST /api/admin/adjustments` invocan `require_user(admin=True)` ([líneas 281–290](<C:/Users/jonat/Documents/ChatGPT/Seguridad en el Desarrollo de Software/tpi-billetera/backend/app.py:281>)). Luego se validan importe y motivo y se actualiza el saldo en una transacción ([líneas 291–300](<C:/Users/jonat/Documents/ChatGPT/Seguridad en el Desarrollo de Software/tpi-billetera/backend/app.py:291>)). La comprobación de rol ocurre antes del cambio.
+1. `current_user()` obtiene el ID de la sesión, comprueba la generación y consulta el usuario y rol en SQLite ([backend/app.py, líneas 164–174](<C:/Users/jonat/Documents/ChatGPT/Seguridad en el Desarrollo de Software/tpi-billetera/backend/app.py:164>)). El rol no se acepta como dato enviado por el cliente.
+2. `require_user(admin=False)` responde **401** si no hay sesión válida. En la variante corregida, si se pide administración y el rol no es `admin`, responde **403**. La variante didáctica selecciona una rama que omite esa segunda verificación, pero aún exige sesión ([líneas 176–187](<C:/Users/jonat/Documents/ChatGPT/Seguridad en el Desarrollo de Software/tpi-billetera/backend/app.py:176>)).
+3. `GET /api/admin/users` y `POST /api/admin/adjustments` invocan `require_user(admin=True)` ([líneas 302–311](<C:/Users/jonat/Documents/ChatGPT/Seguridad en el Desarrollo de Software/tpi-billetera/backend/app.py:302>)). Luego se validan importe y motivo y se actualiza el saldo en una transacción ([líneas 312–320](<C:/Users/jonat/Documents/ChatGPT/Seguridad en el Desarrollo de Software/tpi-billetera/backend/app.py:312>)). La comprobación de rol ocurre antes del cambio.
 4. La versión corregida exige además CSRF para mutaciones. Sin token puede responder **400** antes de comprobar el rol. Un 400 no demuestra por sí solo que se haya alcanzado la autorización; con token válido, el resultado esperado de Ana es **403**.
 
-El siguiente fragmento reproduce la función del backend ([backend/app.py, líneas 166–173](<C:/Users/jonat/Documents/ChatGPT/Seguridad en el Desarrollo de Software/tpi-billetera/backend/app.py:166>)):
+El siguiente fragmento reproduce la función del backend ([backend/app.py, líneas 176–187](<C:/Users/jonat/Documents/ChatGPT/Seguridad en el Desarrollo de Software/tpi-billetera/backend/app.py:176>)):
 
 ```python
 def require_user(admin=False):
     user = current_user()
     if user is None:
         abort(401)
-    # Deliberately missing function-level authorization in the teaching app.
-    if admin and not teaching and user['role'] != 'admin':
-        abort(403)
-    return user
+    if teaching:
+        # Vulnerable: autentica, pero omite la autorización por rol.
+        return user
+    else:
+        # Corregida: las operaciones administrativas exigen ese rol.
+        if admin and user['role'] != 'admin':
+            abort(403)
+        return user
 ```
 
-La variable `teaching` se calcula al crear la aplicación: vale verdadero cuando la variante fija del proceso es `vulnerable` ([línea 42](<C:/Users/jonat/Documents/ChatGPT/Seguridad en el Desarrollo de Software/tpi-billetera/backend/app.py:42>)). Para leer la segunda condición, conviene separar sus tres componentes:
-
-1. `admin` indica que quien invocó la función exige acceso administrativo. En `adjust()`, la primera operación del handler es `require_user(admin=True)` ([líneas 288–290](<C:/Users/jonat/Documents/ChatGPT/Seguridad en el Desarrollo de Software/tpi-billetera/backend/app.py:288>)).
-2. `not teaching` es verdadero en la versión corregida y falso en la vulnerable. Por eso, en la vulnerable la expresión completa no llega a bloquear por rol.
-3. `user['role'] != 'admin'` identifica una cuenta autenticada sin ese rol. En corregida, si las tres condiciones son verdaderas, `abort(403)` interrumpe el flujo antes de que se alcance el `UPDATE` de la línea 297. Si el rol es `admin`, la función retorna el usuario y el handler continúa con las validaciones y la transacción.
+La variable `teaching` se calcula al crear la aplicación: vale verdadero cuando la variante fija del proceso es `vulnerable` ([línea 43](<C:/Users/jonat/Documents/ChatGPT/Seguridad en el Desarrollo de Software/tpi-billetera/backend/app.py:43>)). Primero se exige una sesión válida. Después, `if teaching` elige la rama vulnerable, que devuelve el usuario sin comprobar su rol. En el `else` de la variante corregida, `admin` indica que el llamador exige acceso administrativo y `user['role'] != 'admin'` identifica a quien no tiene ese rol. Si se cumplen ambas condiciones, `abort(403)` interrumpe el flujo antes del `UPDATE` de la línea 318. Si el rol es `admin`, la función devuelve el usuario y el handler continúa con las validaciones y la transacción. En `adjust()`, la primera operación es `require_user(admin=True)` ([líneas 310–311](<C:/Users/jonat/Documents/ChatGPT/Seguridad en el Desarrollo de Software/tpi-billetera/backend/app.py:310>)).
 
 Para Ana, la UI no dibuja la opción administrativa; sin embargo, la ruta `POST` sigue existiendo. La prueba manual permite mostrar que el cliente puede alcanzar esa ruta y que únicamente el control de la rama corregida detiene la acción. El control positivo con `admin` comprueba que el permiso no se implementó bloqueando a todo el mundo.
 
@@ -241,7 +241,9 @@ Para saber si una fila sería ajena no alcanza con mirar un nombre desconocido: 
 | Observación | La búsqueda envía un término y devuelve movimientos visibles de la cuenta. |
 | Sospecha | Un error o cambio inesperado al usar una comilla orienta a investigar; también puede tener otra causa. |
 | Prueba | Tras preparar y reconocer ambas filas, aparece para Ana la transferencia admin → Bruno en la vulnerable; en la corregida no aparece y la búsqueda propia funciona. |
-| Descartes | Una comilla, un error HTTP, un 200 o una fila cuya pertenencia se desconoce no prueban por sí solos SQLi ni acceso indebido. El código actual devuelve 400 genérico si SQLite rechaza esta búsqueda. |
+| Descartes | Una comilla, un error HTTP, un 200 o una fila cuya pertenencia se desconoce no prueban por sí solos SQLi ni acceso indebido. En Actividad, una comilla sola provoca en vulnerable un 400 con detalle de SQLite; en corregida se busca como texto y devuelve una lista vacía si no hay coincidencias. El detalle es intencional para este laboratorio y sería inapropiado en una aplicación real. |
+
+Tras un 400 pueden seguir visibles las filas de la última búsqueda exitosa: no son el resultado de la consulta inválida. Contrastá el estado y `Response` en Network/Red; limpiá la búsqueda para recuperar el historial.
 
 **Para contar el recorrido:** «Como Ana vi una búsqueda en Actividad. Preparé movimientos con propietarios conocidos y comprobé el resultado normal. Con el término de prueba apareció una fila entre admin y Bruno, que Ana no debería ver; en la corregida no apareció y la búsqueda de Ana siguió funcionando». La revisión posterior de `movements` explica por qué sucedió; la pantalla sola no muestra el SQL interno.
 
@@ -274,9 +276,9 @@ El valor de `q` está codificado para transportarlo en la URL y representa la mi
 
 ### Consultas expandida y parametrizada
 
-`movements()` exige sesión, obtiene `q` y recorta la búsqueda a 200 caracteres ([backend/app.py, líneas 242–245](<C:/Users/jonat/Documents/ChatGPT/Seguridad en el Desarrollo de Software/tpi-billetera/backend/app.py:242>)). Limitar longitud no evita por sí mismo que se altere la sintaxis.
+`movements()` exige sesión, obtiene `q` y recorta la búsqueda a 200 caracteres ([backend/app.py, líneas 264–266](<C:/Users/jonat/Documents/ChatGPT/Seguridad en el Desarrollo de Software/tpi-billetera/backend/app.py:264>)). Limitar longitud no evita por sí mismo que se altere la sintaxis.
 
-En vulnerable, un `f-string` intercala `q` directamente en el `LIKE` ([líneas 247–254](<C:/Users/jonat/Documents/ChatGPT/Seguridad en el Desarrollo de Software/tpi-billetera/backend/app.py:247>)). Si el ID de Ana fuera 1, la parte relevante de la consulta con la cadena de prueba quedaría conceptualmente así:
+En vulnerable, un `f-string` intercala `q` directamente en el `LIKE` ([líneas 270–275](<C:/Users/jonat/Documents/ChatGPT/Seguridad en el Desarrollo de Software/tpi-billetera/backend/app.py:270>)). Si el ID de Ana fuera 1, la parte relevante de la consulta con la cadena de prueba quedaría conceptualmente así:
 
 ```python
 rows = db.execute(select + f"WHERE (t.sender_id={user['id']} OR t.recipient_id={user['id']}) AND t.concept LIKE '%{q}%' ORDER BY t.id DESC").fetchall()
@@ -298,7 +300,7 @@ WHERE (t.sender_id=1 OR t.recipient_id=1)
 
 La comilla de entrada cierra el literal, `OR 1=1` agrega una condición verdadera y `--` comenta el resto. La base interpreta esos caracteres como estructura SQL; por eso la condición de propiedad deja de limitar adecuadamente el resultado. La evidencia muestra una fila ficticia ajena; no demuestra modificación, borrado ni extracción de contraseñas.
 
-En corregida, el código mantiene fija la consulta y liga por separado el ID dos veces y el patrón de búsqueda ([líneas 255–257](<C:/Users/jonat/Documents/ChatGPT/Seguridad en el Desarrollo de Software/tpi-billetera/backend/app.py:255>)):
+En corregida, el código mantiene fija la consulta y liga por separado el ID dos veces y el patrón de búsqueda ([líneas 276–278](<C:/Users/jonat/Documents/ChatGPT/Seguridad en el Desarrollo de Software/tpi-billetera/backend/app.py:277>)):
 
 ```python
 rows = db.execute(select + 'WHERE (t.sender_id=? OR t.recipient_id=?) AND t.concept LIKE ? ORDER BY t.id DESC',
@@ -364,7 +366,7 @@ Usá:
 | ana | Demo1234! | Envía la transferencia |
 | bruno | Demo1234! | Abre Actividad y observa el dato |
 
-Las cuentas comienzan con 100000 centavos, equivalentes a $1.000,00 (docs/GUIA.md, líneas 18–26). El importe de la demostración es $1: Ana debe quedar con 99900 centavos y Bruno con 100100, si se parte del estado limpio y no interviene otra operación. Los conceptos están limitados a 200 caracteres en la ruta de transferencia; el texto de prueba tiene 189 caracteres, por lo que cabe en ese campo (backend/app.py, función transfer, líneas 260–279; frontend/src/guide/manualCases.ts, constante xss, línea 29).
+Las cuentas comienzan con 100000 centavos, equivalentes a $1.000,00 (docs/GUIA.md, líneas 18–26). El importe de la demostración es $1: Ana debe quedar con 99900 centavos y Bruno con 100100, si se parte del estado limpio y no interviene otra operación. Los conceptos están limitados a 200 caracteres en la ruta de transferencia; el texto de prueba tiene 189 caracteres, por lo que cabe en ese campo (backend/app.py, función transfer, líneas 282–300; frontend/src/guide/manualCases.ts, constante xss, línea 29).
 
 Antes de cada variante, en la guía elegí Restablecer datos de ambas versiones y confirmá. El reinicio repone las semillas e invalida sesiones. Después iniciá sesión normalmente en la versión que vas a probar. No asumas que una sesión permanece abierta tras un reinicio (docs/GUIA.md, líneas 5–16). Para la prueba manual, usá una sola variante de principio a fin: enviá como Ana, cerrá esa sesión e ingresá como Bruno en esa misma billetera. Cambiar de 5000 a 5001 entre el envío y la lectura consultaría otra base de datos, así que el movimiento no aparecería allí.
 
@@ -421,7 +423,7 @@ Si el estado era limpio, la cuenta de Bruno muestra $1,00 más y el historial in
 3. Cerrá sesión de Ana y recargá la página antes de ingresar como Bruno; así ambas variantes siguen el mismo procedimiento y la vista empieza sin nodos añadidos por una sesión anterior. Ingresá como Bruno en la billetera corregida.
 4. El concepto debe verse literalmente como texto, incluida la cadena que comienza con `<img`, tanto en el Resumen/Actividad reciente como al abrir **Actividad**. No aparece el marcador «XSS ejecutado». El registro y el saldo sí cambian como en la variante vulnerable.
 
-No esperes que el servidor rechace el concepto en esta demostración. El caso fue diseñado para comparar el renderizado; la transferencia válida y el almacenamiento del concepto se permiten en ambas variantes. Si se hace el mismo envío con sesión válida, destinatario válido y saldo suficiente, POST /api/transfers responde 200 en ambas versiones. GET /api/movements devuelve 200 y el concepto guardado en las dos (backend/app.py, función transfer, líneas 260–279, y función movements, líneas 242–258). Un 200 confirma que la petición se aceptó; no demuestra por sí solo ni ausencia ni presencia de XSS.
+No esperes que el servidor rechace el concepto en esta demostración. El caso fue diseñado para comparar el renderizado; la transferencia válida y el almacenamiento del concepto se permiten en ambas variantes. Si se hace el mismo envío con sesión válida, destinatario válido y saldo suficiente, POST /api/transfers responde 200 en ambas versiones. GET /api/movements devuelve 200 y el concepto guardado en las dos (backend/app.py, función transfer, líneas 282–300, y función movements, líneas 264–279). Un 200 confirma que la petición se aceptó; no demuestra por sí solo ni ausencia ni presencia de XSS.
 
 ### Qué hace vulnerable la vista y qué corrige la otra
 
@@ -437,9 +439,9 @@ La API entrega el concepto como dato en la lista de movimientos. El componente M
 
 La rama corregida entrega la cadena como un hijo de texto normal. React la escapa para el contexto de texto: el navegador muestra los caracteres en vez de convertirlos en un elemento img, por lo que no existe el manejador onerror que pudiera dispararse. No se está “limpiando” ni borrando el concepto de la base. La protección está en mantenerlo como dato al renderizarlo. Este patrón concreto es seguro para un nodo de texto; otros contextos, como URL, CSS o atributos, requieren reglas adecuadas a su contexto.
 
-El backend valida tipo, longitud, destinatario, importe y saldo, y guarda concept en la fila de transferencia; no transforma este texto para la vista (backend/app.py, función transfer, líneas 260–279). El endpoint de movimientos lo devuelve en JSON (función movements, líneas 242–258). Por eso la frontera importante queda entre recibir/guardar datos y el sumidero de renderizado del frontend.
+El backend valida tipo, longitud, destinatario, importe y saldo, y guarda concept en la fila de transferencia; no transforma este texto para la vista (backend/app.py, función transfer, líneas 282–300). El endpoint de movimientos lo devuelve en JSON (función movements, líneas 264–279). Por eso la frontera importante queda entre recibir/guardar datos y el sumidero de renderizado del frontend.
 
-La variante corregida agrega Content-Security-Policy: default-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'self' (backend/app.py, función security_headers, líneas 130–136). La aplicación sólo añade esa cabecera cuando no está en la instancia de enseñanza vulnerable. Al no autorizar scripts inline, esta política es una defensa adicional que debería impedir un manejador inline como onerror si llegara a interpretarse. En este ejemplo, React texto ya evita interpretarlo; CSP suma defensa en profundidad. No es un sustituto de escapar correctamente cada dato ni de eliminar el sink HTML inseguro.
+La variante corregida agrega Content-Security-Policy: default-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'self' (backend/app.py, función security_headers, líneas 140–146). La aplicación sólo añade esa cabecera cuando no está en la instancia de enseñanza vulnerable. Al no autorizar scripts inline, esta política es una defensa adicional que debería impedir un manejador inline como onerror si llegara a interpretarse. En este ejemplo, React texto ya evita interpretarlo; CSP suma defensa en profundidad. No es un sustituto de escapar correctamente cada dato ni de eliminar el sink HTML inseguro.
 
 ### Qué observar en F12
 
@@ -448,7 +450,7 @@ Abrí DevTools con F12 antes de enviar y seleccioná **Network**. Si necesitás 
 - Al pulsar **Enviar transferencia**, la capa de API obtiene primero un token con GET /api/csrf-token y después hace POST /api/transfers con JSON, cookies incluidas y encabezado X-CSRF-Token (frontend/src/shared/api.ts, funciones walletRequest y walletPost, líneas 43–70). Este detalle es parte del contrato general de mutaciones; para el caso XSS, el cuerpo válido se acepta en ambas variantes.
 - En el POST, inspeccioná **Payload**: recipient debe ser bruno, amount_cents debe ser 100 y concept debe ser exactamente el texto pegado. La conversión desde pesos ocurre en TransferView.submit, líneas 545–565.
 - El estado esperado del POST es 200. Si es distinto, primero resolvé el fallo de autenticación, saldo, destinatario o estado; todavía no hay una comparación de renderizado válida.
-- Después de entrar como Bruno y abrir Actividad, buscá GET /api/movements. La respuesta 200 contiene el concepto almacenado. El endpoint limita q a 200 caracteres y devuelve movimientos; la búsqueda no es necesaria para este ejercicio (backend/app.py, líneas 242–258).
+- Después de entrar como Bruno y abrir Actividad, buscá GET /api/movements. La respuesta 200 contiene el concepto almacenado. El endpoint limita q a 200 caracteres y devuelve movimientos; la búsqueda no es necesaria para este ejercicio (backend/app.py, líneas 264–279).
 - En **Elements**, la variante vulnerable debe tener un elemento marcado data-testid="xss-marker" con texto «XSS ejecutado». En la corregida inspeccioná la fila: el concepto debe permanecer como texto visible y no debe existir el nodo marcador.
 - En **Headers**, compará Content-Security-Policy. La respuesta segura incluye la cabecera; en la variante de enseñanza vulnerable se omite de forma deliberada. Una consola sin error no refuta la prueba: el criterio principal es el DOM observado y el dato devuelto.
 
@@ -554,24 +556,24 @@ Los enlaces siguientes apuntan a archivos reales de esta copia del proyecto. Cad
 
 | Abrir el código | Ubicación para buscar manualmente | Qué mostrar |
 | --- | --- | --- |
-| [Modo vulnerable o corregido](<C:/Users/jonat/Documents/ChatGPT/Seguridad en el Desarrollo de Software/tpi-billetera/backend/app.py:42>) | backend/app.py:42 | create_app y variable teaching |
-| [Identidad de sesión](<C:/Users/jonat/Documents/ChatGPT/Seguridad en el Desarrollo de Software/tpi-billetera/backend/app.py:154>) | backend/app.py:154 | current_user consulta generación y usuario |
-| [Comprobación de rol](<C:/Users/jonat/Documents/ChatGPT/Seguridad en el Desarrollo de Software/tpi-billetera/backend/app.py:166>) | backend/app.py:166 | require_user |
-| [Condición que cambia el resultado de roles](<C:/Users/jonat/Documents/ChatGPT/Seguridad en el Desarrollo de Software/tpi-billetera/backend/app.py:171>) | backend/app.py:171 | admin y not teaching y role distinto de admin |
-| [Ajuste administrativo](<C:/Users/jonat/Documents/ChatGPT/Seguridad en el Desarrollo de Software/tpi-billetera/backend/app.py:288>) | backend/app.py:288 | adjust exige require_user admin antes del UPDATE |
-| [Cambio persistido de saldo](<C:/Users/jonat/Documents/ChatGPT/Seguridad en el Desarrollo de Software/tpi-billetera/backend/app.py:297>) | backend/app.py:297 | UPDATE parametrizado y registro de ajuste |
+| [Modo vulnerable o corregido](<C:/Users/jonat/Documents/ChatGPT/Seguridad en el Desarrollo de Software/tpi-billetera/backend/app.py:43>) | backend/app.py:43 | create_app y variable teaching |
+| [Identidad de sesión](<C:/Users/jonat/Documents/ChatGPT/Seguridad en el Desarrollo de Software/tpi-billetera/backend/app.py:164>) | backend/app.py:164 | current_user consulta generación y usuario |
+| [Comprobación de rol](<C:/Users/jonat/Documents/ChatGPT/Seguridad en el Desarrollo de Software/tpi-billetera/backend/app.py:176>) | backend/app.py:176 | require_user |
+| [Condición que cambia el resultado de roles](<C:/Users/jonat/Documents/ChatGPT/Seguridad en el Desarrollo de Software/tpi-billetera/backend/app.py:180>) | backend/app.py:180 | selección de variante y control de rol en la rama corregida |
+| [Ajuste administrativo](<C:/Users/jonat/Documents/ChatGPT/Seguridad en el Desarrollo de Software/tpi-billetera/backend/app.py:310>) | backend/app.py:310 | adjust exige require_user admin antes del UPDATE |
+| [Cambio persistido de saldo](<C:/Users/jonat/Documents/ChatGPT/Seguridad en el Desarrollo de Software/tpi-billetera/backend/app.py:318>) | backend/app.py:318 | UPDATE parametrizado y registro de ajuste |
 | [Menú de administración](<C:/Users/jonat/Documents/ChatGPT/Seguridad en el Desarrollo de Software/tpi-billetera/frontend/src/wallet/WalletApp.tsx:352>) | frontend/src/wallet/WalletApp.tsx:352 | Navegación según rol |
 | [Conversión de ajuste en pesos a centavos](<C:/Users/jonat/Documents/ChatGPT/Seguridad en el Desarrollo de Software/tpi-billetera/frontend/src/wallet/WalletApp.tsx:879>) | frontend/src/wallet/WalletApp.tsx:879 | AdminView submit |
-| [Consulta de movimientos](<C:/Users/jonat/Documents/ChatGPT/Seguridad en el Desarrollo de Software/tpi-billetera/backend/app.py:243>) | backend/app.py:243 | movements obtiene usuario y q |
-| [Consulta vulnerable](<C:/Users/jonat/Documents/ChatGPT/Seguridad en el Desarrollo de Software/tpi-billetera/backend/app.py:252>) | backend/app.py:252 | Interpolación de q dentro del SQL |
-| [Consulta corregida](<C:/Users/jonat/Documents/ChatGPT/Seguridad en el Desarrollo de Software/tpi-billetera/backend/app.py:256>) | backend/app.py:256 | SQL con placeholders y valores separados |
+| [Consulta de movimientos](<C:/Users/jonat/Documents/ChatGPT/Seguridad en el Desarrollo de Software/tpi-billetera/backend/app.py:264>) | backend/app.py:264 | movements obtiene usuario y q |
+| [Consulta vulnerable](<C:/Users/jonat/Documents/ChatGPT/Seguridad en el Desarrollo de Software/tpi-billetera/backend/app.py:273>) | backend/app.py:273 | Interpolación de q dentro del SQL |
+| [Consulta corregida](<C:/Users/jonat/Documents/ChatGPT/Seguridad en el Desarrollo de Software/tpi-billetera/backend/app.py:277>) | backend/app.py:277 | SQL con placeholders y valores separados |
 | [Construcción de la URL de búsqueda](<C:/Users/jonat/Documents/ChatGPT/Seguridad en el Desarrollo de Software/tpi-billetera/frontend/src/wallet/WalletApp.tsx:437>) | frontend/src/wallet/WalletApp.tsx:437 | encodeURIComponent al aplicar la búsqueda |
 | [Importe y envío de la transferencia](<C:/Users/jonat/Documents/ChatGPT/Seguridad en el Desarrollo de Software/tpi-billetera/frontend/src/wallet/WalletApp.tsx:548>) | frontend/src/wallet/WalletApp.tsx:548 | TransferView convierte pesos y envía JSON |
-| [Persistencia del concepto](<C:/Users/jonat/Documents/ChatGPT/Seguridad en el Desarrollo de Software/tpi-billetera/backend/app.py:278>) | backend/app.py:278 | INSERT de transferencia parametrizado |
+| [Persistencia del concepto](<C:/Users/jonat/Documents/ChatGPT/Seguridad en el Desarrollo de Software/tpi-billetera/backend/app.py:299>) | backend/app.py:299 | INSERT de transferencia parametrizado |
 | [Representación de conceptos](<C:/Users/jonat/Documents/ChatGPT/Seguridad en el Desarrollo de Software/tpi-billetera/frontend/src/wallet/WalletApp.tsx:722>) | frontend/src/wallet/WalletApp.tsx:722 | MovementList |
 | [Punto de ejecución HTML vulnerable](<C:/Users/jonat/Documents/ChatGPT/Seguridad en el Desarrollo de Software/tpi-billetera/frontend/src/wallet/WalletApp.tsx:754>) | frontend/src/wallet/WalletApp.tsx:754 | dangerouslySetInnerHTML |
 | [Salida como texto corregida](<C:/Users/jonat/Documents/ChatGPT/Seguridad en el Desarrollo de Software/tpi-billetera/frontend/src/wallet/WalletApp.tsx:756>) | frontend/src/wallet/WalletApp.tsx:756 | Valor normal de React dentro de JSX |
-| [Defensa CSP adicional](<C:/Users/jonat/Documents/ChatGPT/Seguridad en el Desarrollo de Software/tpi-billetera/backend/app.py:135>) | backend/app.py:135 | Cabecera Content-Security-Policy |
+| [Defensa CSP adicional](<C:/Users/jonat/Documents/ChatGPT/Seguridad en el Desarrollo de Software/tpi-billetera/backend/app.py:145>) | backend/app.py:145 | Cabecera Content-Security-Policy |
 | [Helper común de los POST](<C:/Users/jonat/Documents/ChatGPT/Seguridad en el Desarrollo de Software/tpi-billetera/frontend/src/shared/api.ts:60>) | frontend/src/shared/api.ts:60 | walletPost consulta token y envía el cuerpo |
 | [Prueba automática de roles](<C:/Users/jonat/Documents/ChatGPT/Seguridad en el Desarrollo de Software/tpi-billetera/lab/api_cases.py:65>) | lab/api_cases.py:65 | access_control y administrador legítimo |
 | [Prueba automática SQLi](<C:/Users/jonat/Documents/ChatGPT/Seguridad en el Desarrollo de Software/tpi-billetera/lab/api_cases.py:94>) | lab/api_cases.py:94 | Preparación de filas y comprobación de fila ajena |
@@ -582,7 +584,7 @@ Los enlaces siguientes apuntan a archivos reales de esta copia del proyecto. Cad
 
 **Roles:** mostrás Ana y /api/me; ejecutás el POST; mostrás saldo y respuesta; abrís require_user en app.py, luego la llamada de adjust; repetís en corregida y cerrás con el administrador legítimo. No hace falta recorrer todo el archivo de Flask para explicar el permiso.
 
-**SQLi:** mostrás primero las dos transferencias preparadas y cuál pertenece a Ana; ejecutás la búsqueda; mostrás la fila ajena en Response; abrís movements y comparás la línea 252 con las líneas 256 y 257. El frontend sólo transporta y presenta el valor; el motor SQL interpreta la consulta.
+**SQLi:** mostrás primero las dos transferencias preparadas y cuál pertenece a Ana; ejecutás la búsqueda; mostrás la fila ajena en Response; abrís movements y comparás la línea 273 con las líneas 277 y 278. El frontend sólo transporta y presenta el valor; el motor SQL interpreta la consulta.
 
 **XSS:** mostrás la transferencia con el concepto, cambiás a Bruno y abrís Actividad; mostrás el marcador y el elemento creado; abrís MovementList y comparás las ramas de las líneas 754 y 756; señalás el INSERT como almacenamiento, y CSP como defensa adicional.
 

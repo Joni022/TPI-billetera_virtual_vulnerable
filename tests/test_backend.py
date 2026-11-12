@@ -40,6 +40,24 @@ def test_transfer_and_access_control(wallet):
     assert client.get('/api/me').json['user']['balance_cents'] == 99850
 
 
+@pytest.mark.parametrize('variant', ['vulnerable', 'secure'])
+def test_movement_search_quote_and_normal_query(tmp_path, variant):
+    wallet = create_app({'TESTING': True, 'VARIANT': variant, 'SECRET_KEY': 'test-key',
+                         'DATABASE': str(tmp_path/'db.sqlite'), 'SESSION_DIR': str(tmp_path/'sessions')})
+    client = wallet.test_client()
+    login(client)
+    assert post(client, '/api/transfers', {'recipient': 'bruno', 'amount_cents': 100, 'concept': 'Compra propia'}).status_code == 200
+    assert client.get('/api/movements', query_string={'q': 'Compra propia'}).json['movements'][0]['concept'] == 'Compra propia'
+    response = client.get('/api/movements', query_string={'q': "'"})
+    if variant == 'vulnerable':
+        assert response.status_code == 400
+        assert response.json['error'].startswith('Error de base de datos: ')
+        assert 'syntax error' in response.json['error'] or 'unrecognized token' in response.json['error']
+    else:
+        assert response.status_code == 200
+        assert response.json == {'movements': []}
+
+
 def test_transfer_rejects_oversized_form_amount_without_changes(wallet):
     client = wallet.test_client()
     login(client)

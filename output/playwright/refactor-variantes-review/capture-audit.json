@@ -1,0 +1,158 @@
+[
+  {
+    "case": "access-control",
+    "variant": "vulnerable",
+    "identical": false,
+    "hashes": [
+      "775fb1fab947a157cc1304eadf82a12689d0c3d154556027daad1d7b820d5db2",
+      "d051fdcaf437d834d7465d3f98b31a2b843607defacbfb586b36cd6decf76575"
+    ],
+    "descriptions": [
+      "Saldo de Ana antes del intento de ajuste.",
+      "Saldo de Ana después del intento; si fue rechazado, permanece igual."
+    ]
+  },
+  {
+    "case": "access-control",
+    "variant": "secure",
+    "identical": true,
+    "hashes": [
+      "6e801299c8c6072483219759b6a69ff4a04da79eeb14f0d4c6b2b757ffb1fdf2",
+      "6e801299c8c6072483219759b6a69ff4a04da79eeb14f0d4c6b2b757ffb1fdf2"
+    ],
+    "descriptions": [
+      "Saldo de Ana antes del intento de ajuste.",
+      "Saldo de Ana después del intento; si fue rechazado, permanece igual."
+    ]
+  },
+  {
+    "case": "csrf",
+    "variant": "vulnerable",
+    "identical": false,
+    "hashes": [
+      "7162841e0ffe743b71e7c6ad15b8e2291cfab9acbda1d6effb4500cc14cf2dab",
+      "308be40a4206f90a85a754fad337a2f1924ba9252b2d839dd43ace48db357232"
+    ],
+    "descriptions": [
+      "Saldo y actividad de Ana antes del envío del formulario.",
+      "Saldo y actividad de Ana después del envío; si fue rechazado, permanecen iguales."
+    ]
+  },
+  {
+    "case": "csrf",
+    "variant": "secure",
+    "identical": true,
+    "hashes": [
+      "ce77035f4aef81dbac093356706ac9300893d133dcced0ca005c96d1b87487a0",
+      "ce77035f4aef81dbac093356706ac9300893d133dcced0ca005c96d1b87487a0"
+    ],
+    "descriptions": [
+      "Saldo y actividad de Ana antes del envío del formulario.",
+      "Saldo y actividad de Ana después del envío; si fue rechazado, permanecen iguales."
+    ]
+  },
+  {
+    "case": "xss",
+    "variant": "vulnerable",
+    "identical": false,
+    "hashes": [
+      "96981e802b5d0cce57fd01990f8a8e7720c41f466c5585cdbe68233542e4648c",
+      "ba3ce59bd19554f79a5e69ae9d96a1e73105851d48cd4b7ece5e40272a59d3fd"
+    ],
+    "descriptions": [
+      "Billetera de Bruno antes de recibir el concepto de prueba.",
+      "Actividad de Bruno después de recibir el concepto; muestra el marcador o el texto literal."
+    ]
+  },
+  {
+    "case": "xss",
+    "variant": "secure",
+    "identical": false,
+    "hashes": [
+      "c4cba80eb98becb1a0497b0aa33e3648ba861ab71e03f719cbe43b1c124cf9b6",
+      "eaca4947752a44de413e5dc64fc9bf9a99901055b1a90bd22f5cfb32a34912b1"
+    ],
+    "descriptions": [
+      "Billetera de Bruno antes de recibir el concepto de prueba.",
+      "Actividad de Bruno después de recibir el concepto; muestra el marcador o el texto literal."
+    ]
+  },
+  {
+    "case": "sqli",
+    "variant": "vulnerable",
+    "identical": false,
+    "hashes": [
+      "6645768f83e2c8715f02ac9fdedc570f0c300a6fbb6402415aaf6f6fec4ae128",
+      "32108d57ab415c68d22523349eda7f0949d6a2bee642d0eb03bb783bef9afc6e"
+    ],
+    "descriptions": [
+      "Actividad de Ana antes de la búsqueda de prueba.",
+      "Resultado de la búsqueda de prueba en Actividad."
+    ]
+  },
+  {
+    "case": "sqli",
+    "variant": "secure",
+    "identical": false,
+    "hashes": [
+      "58780691b7215281662b91a0c3b3378b4b114dd6920e3b217b85cac6007e3a8f",
+      "5eb7897898db76d3c4e64ee02b6b9b211f4261c5c0c5ff6f55852eda28dba80d"
+    ],
+    "descriptions": [
+      "Actividad de Ana antes de la búsqueda de prueba.",
+      "Resultado de la búsqueda de prueba en Actividad."
+    ]
+  },
+  {
+    "case": "authentication",
+    "variant": "vulnerable",
+    "identical": false,
+    "hashes": [
+      "939078966eb6fc069ed4854f7e968de65abd5cca781ec147151000e00bc10806",
+      "a3a58817721ced9cb3ed35b61b6bed1367744f5a2e232409e52277e414d98791"
+    ],
+    "descriptions": [
+      "Formulario de acceso antes de los intentos.",
+      "Respuesta visible del formulario después de los intentos."
+    ]
+  },
+  {
+    "case": "authentication",
+    "variant": "secure",
+    "identical": false,
+    "hashes": [
+      "199e388b3e6d5f2ac828239efbeae53e364a677df5b17afcb600f3aa04b96425",
+      "1690e3055b0f9e8e2573f067003162f881b72ac9a3068ea42893f485aec759b3"
+    ],
+    "descriptions": [
+      "Formulario de acceso antes de los intentos.",
+      "Respuesta visible del formulario después de los intentos."
+    ]
+  },
+  {
+    "case": "ssrf",
+    "variant": "vulnerable",
+    "identical": false,
+    "hashes": [
+      "3145cc24892155ffc2be21246db3cefd53b28e5c992309b40834884bb6c97b0d",
+      "2431bd51c7bfc278fa7a650ecfddde3d6fc48da6c7677481307f0c7082783622"
+    ],
+    "descriptions": [
+      "Cotizador antes de consultar el servicio interno ficticio.",
+      "Resultado visible de la consulta al servicio interno ficticio."
+    ]
+  },
+  {
+    "case": "ssrf",
+    "variant": "secure",
+    "identical": false,
+    "hashes": [
+      "2b8268155670e17b125718413c7373c794e77e662276a867ac66d271c4bf5bed",
+      "3cb0ce2dd19f3e9f51911d321ea1943c2cdcdef4f83ad2001e27d7d694eb0088"
+    ],
+    "descriptions": [
+      "Cotizador antes de consultar el servicio interno ficticio.",
+      "Resultado visible de la consulta al servicio interno ficticio."
+    ]
+  }
+]
