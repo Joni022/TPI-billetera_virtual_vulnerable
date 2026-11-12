@@ -1,8 +1,9 @@
 """Casos cerrados sobre datos ficticios del laboratorio local."""
-from pathlib import Path
+from urllib.parse import parse_qs, urlencode, urlsplit
 
 import requests
 from playwright.sync_api import sync_playwright
+from lab.captures import write_screenshot
 
 PASSWORD = "Demo1234!"
 PROVIDER = "http://quote-provider:8080/quote/USD"
@@ -54,7 +55,7 @@ class WalletClient:
     def screenshot(self, directory, name):
         self.page.goto(self.base, wait_until="networkidle")
         self.page.get_by_test_id("balance").wait_for()
-        self.page.screenshot(path=str(Path(directory) / name), full_page=True)
+        write_screenshot(self.page, directory, name, full_page=True)
 
 
 def result(variant, observed, evidence):
@@ -103,18 +104,26 @@ def sqli(browser, variant, base, directory):
         if code != 200:
             raise ScenarioError("No se pudieron preparar los movimientos de demostración.")
     _, before = user.get("/api/movements")
-    user.screenshot(directory, "before.png")
+    user.page.goto(base, wait_until="networkidle")
+    user.page.get_by_role("button", name="Actividad", exact=True).click()
+    user.page.get_by_text("Compra propia", exact=True).wait_for(state="visible")
+    write_screenshot(user.page, directory, "before.png", full_page=True)
     payload = "' OR 1=1 --"
-    from urllib.parse import urlencode
     status, after = user.get("/api/movements?" + urlencode({"q": payload}))
     rows = after.get("movements", [])
     leaked = any(row.get("concept") == "Movimiento reservado" for row in rows)
     # Show the very same search in the real frontend for the screenshot.
-    user.page.get_by_role("button", name="Actividad", exact=True).click()
     search = user.page.get_by_test_id("movements-search")
-    search.fill(payload)
-    user.page.wait_for_timeout(800)
-    user.page.screenshot(path=str(Path(directory) / "after.png"), full_page=True)
+    with user.page.expect_response(lambda response: response.request.method == "GET"
+                                   and urlsplit(response.url).path == "/api/movements"
+                                   and parse_qs(urlsplit(response.url).query).get("q") == [payload]):
+        search.fill(payload)
+    user.page.wait_for_function("""(concepts) => {
+        const rows = [...document.querySelectorAll('[data-testid=movements-list] .movement-row')];
+        return rows.length === concepts.length && concepts.every((concept, index) =>
+          rows[index].querySelector('.movement-concept')?.textContent === concept);
+    }""", arg=[row.get("concept", "") for row in rows])
+    write_screenshot(user.page, directory, "after.png", full_page=True)
     return result(variant, status == 200 and (leaked if variant == "vulnerable" else not leaked and not rows),
                   {"summary": "La búsqueda intenta cambiar la condición de autorización y obtener un movimiento entre otros usuarios.",
                    "request": {"method": "GET", "path": "/api/movements", "query": payload, "status": status},
@@ -125,7 +134,7 @@ def authentication(browser, variant, base, directory):
     user = WalletClient(browser, base)
     user.page.goto(base)
     user.page.get_by_test_id("login-submit").wait_for()
-    user.page.screenshot(path=str(Path(directory) / "before.png"), full_page=True)
+    write_screenshot(user.page, directory, "before.png", full_page=True)
     first_status, existing = user.post("/api/auth/login", {"username": "ana", "password": "Incorrecta123!"})
     unknown_status, unknown = user.post("/api/auth/login", {"username": "noexiste", "password": "Incorrecta123!"})
     statuses = []
@@ -135,8 +144,8 @@ def authentication(browser, variant, base, directory):
     user.page.get_by_test_id("username").fill("ana")
     user.page.get_by_test_id("password").fill("Incorrecta123!")
     user.page.get_by_test_id("login-submit").click()
-    user.page.wait_for_timeout(400)
-    user.page.screenshot(path=str(Path(directory) / "after.png"), full_page=True)
+    user.page.get_by_role("alert").wait_for(state="visible")
+    write_screenshot(user.page, directory, "after.png", full_page=True)
     uniform = existing.get("error") == unknown.get("error")
     limited = 429 in statuses
     expected = (not uniform and not limited) if variant == "vulnerable" else (uniform and limited)
@@ -150,12 +159,14 @@ def authentication(browser, variant, base, directory):
 def ssrf(browser, variant, base, directory):
     user = WalletClient(browser, base)
     user.login("ana")
-    user.screenshot(directory, "before.png")
+    user.page.goto(base, wait_until="networkidle")
+    user.page.get_by_role("button", name="Cotizador", exact=True).click()
+    user.page.get_by_label("URL del proveedor").wait_for(state="visible")
+    write_screenshot(user.page, directory, "before.png", full_page=True)
     session = requests.Session()
     session.trust_env = False
     counter_before = session.get("http://private-ledger:8080/stats", timeout=3).json()["/demo"]
     good_status, good_result = user.post("/api/quotes/import", {"url": PROVIDER})
-    user.page.get_by_role("button", name="Cotizador", exact=True).click()
     user.page.get_by_label("URL del proveedor").fill(PRIVATE)
     with user.page.expect_response(lambda response: response.request.method == 'POST' and response.url.endswith('/api/quotes/import')) as pending:
         user.page.get_by_role("button", name="Consultar", exact=True).click()
@@ -168,8 +179,13 @@ def ssrf(browser, variant, base, directory):
     leaked = "DATO INTERNO FICTICIO" in str(response)
     if calls not in (0, 1):
         raise ScenarioError("Se detectaron llamadas concurrentes al servicio interno.")
-    user.page.wait_for_timeout(600)
-    user.page.screenshot(path=str(Path(directory) / "after.png"), full_page=True)
+    if status == 200 and leaked:
+        user.page.get_by_text("DATO INTERNO FICTICIO", exact=False).wait_for(state="visible")
+    elif status in (400, 403):
+        user.page.get_by_role("alert").wait_for(state="visible")
+    else:
+        user.page.get_by_role("button", name="Consultar", exact=True).wait_for(state="visible")
+    write_screenshot(user.page, directory, "after.png", full_page=True)
     expected = (status == 200 and leaked and calls == 1) if variant == "vulnerable" else (status in (400, 403) and not leaked and calls == 0)
     return result(variant, good_status == 200 and good_result.get("result", {}).get("currency") == "USD" and expected,
                   {"summary": "El proveedor legítimo funciona; se intenta consultar un servicio interno ficticio desde el servidor.",

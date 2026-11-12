@@ -1,0 +1,638 @@
+{
+  "case_id": "all",
+  "created_at": "2026-11-12T04:06:23.221309+00:00",
+  "current": null,
+  "error": null,
+  "finished_at": "2026-11-12T04:07:21.636975+00:00",
+  "id": "fe59124bc57a448eaa63773d9602f6c2",
+  "results": [
+    {
+      "case_id": "access-control",
+      "evidence": {
+        "after": {
+          "balance_cents": 105000,
+          "id": 1,
+          "legitimate_admin_status": 200,
+          "response": {
+            "ok": true
+          },
+          "role": "user",
+          "username": "ana"
+        },
+        "before": {
+          "balance_cents": 100000,
+          "id": 1,
+          "role": "user",
+          "username": "ana"
+        },
+        "captures": [
+          {
+            "description": "Saldo de Ana antes del intento de ajuste.",
+            "label": "Antes",
+            "phase": "before",
+            "url": "/lab/artifacts/fe59124bc57a448eaa63773d9602f6c2/access-control-vulnerable/before.png"
+          },
+          {
+            "description": "Saldo de Ana después del intento; si fue rechazado, permanece igual.",
+            "label": "Después",
+            "phase": "after",
+            "url": "/lab/artifacts/fe59124bc57a448eaa63773d9602f6c2/access-control-vulnerable/after.png"
+          }
+        ],
+        "request": {
+          "body": {
+            "delta_cents": 5000,
+            "reason": "Demostración control de acceso",
+            "user_id": 1
+          },
+          "method": "POST",
+          "path": "/api/admin/adjustments",
+          "status": 200
+        },
+        "screenshots": [
+          "/lab/artifacts/fe59124bc57a448eaa63773d9602f6c2/access-control-vulnerable/before.png",
+          "/lab/artifacts/fe59124bc57a448eaa63773d9602f6c2/access-control-vulnerable/after.png"
+        ],
+        "summary": "Un usuario común intenta ajustar su saldo; también se verifica la operación legítima del administrador."
+      },
+      "outcome": "attack_reproduced",
+      "variant": "vulnerable"
+    },
+    {
+      "case_id": "access-control",
+      "evidence": {
+        "after": {
+          "balance_cents": 100000,
+          "id": 1,
+          "legitimate_admin_status": 200,
+          "response": {
+            "error": "Acceso denegado"
+          },
+          "role": "user",
+          "username": "ana"
+        },
+        "before": {
+          "balance_cents": 100000,
+          "id": 1,
+          "role": "user",
+          "username": "ana"
+        },
+        "captures": [
+          {
+            "description": "Saldo de Ana antes del intento de ajuste.",
+            "label": "Antes",
+            "phase": "before",
+            "url": "/lab/artifacts/fe59124bc57a448eaa63773d9602f6c2/access-control-secure/before.png"
+          },
+          {
+            "description": "Saldo de Ana después del intento; si fue rechazado, permanece igual.",
+            "label": "Después",
+            "phase": "after",
+            "url": "/lab/artifacts/fe59124bc57a448eaa63773d9602f6c2/access-control-secure/after.png"
+          }
+        ],
+        "request": {
+          "body": {
+            "delta_cents": 5000,
+            "reason": "Demostración control de acceso",
+            "user_id": 1
+          },
+          "method": "POST",
+          "path": "/api/admin/adjustments",
+          "status": 403
+        },
+        "screenshots": [
+          "/lab/artifacts/fe59124bc57a448eaa63773d9602f6c2/access-control-secure/before.png",
+          "/lab/artifacts/fe59124bc57a448eaa63773d9602f6c2/access-control-secure/after.png"
+        ],
+        "summary": "Un usuario común intenta ajustar su saldo; también se verifica la operación legítima del administrador."
+      },
+      "outcome": "blocked",
+      "variant": "secure"
+    },
+    {
+      "case_id": "csrf",
+      "evidence": {
+        "after": {
+          "account_status": 200,
+          "balance_cents": 97500,
+          "latest_concept": "Demostración CSRF",
+          "movement_count": 1,
+          "username": "ana"
+        },
+        "before": {
+          "account_status": 200,
+          "balance_cents": 100000,
+          "latest_concept": null,
+          "movement_count": 0,
+          "username": "ana"
+        },
+        "captures": [
+          {
+            "description": "Saldo y actividad de Ana antes del envío del formulario.",
+            "label": "Antes",
+            "phase": "before",
+            "url": "/lab/artifacts/fe59124bc57a448eaa63773d9602f6c2/csrf-vulnerable/before.png"
+          },
+          {
+            "description": "Saldo y actividad de Ana después del envío; si fue rechazado, permanecen iguales.",
+            "label": "Después",
+            "phase": "after",
+            "url": "/lab/artifacts/fe59124bc57a448eaa63773d9602f6c2/csrf-vulnerable/after.png"
+          }
+        ],
+        "request": {
+          "body": "recipient=bruno&amount_cents=2500&concept=Demostraci%C3%B3n+CSRF",
+          "headers": {
+            "content-type": "application/x-www-form-urlencoded",
+            "origin": "http://localhost:5003",
+            "referer": "http://localhost:5003/"
+          },
+          "method": "POST",
+          "path": "/api/transfers",
+          "status": 200
+        },
+        "screenshots": [
+          "/lab/artifacts/fe59124bc57a448eaa63773d9602f6c2/csrf-vulnerable/before.png",
+          "/lab/artifacts/fe59124bc57a448eaa63773d9602f6c2/csrf-vulnerable/after.png"
+        ],
+        "summary": "El formulario de :5003 transfirió $25 y el saldo de ana disminuyó."
+      },
+      "outcome": "attack_reproduced",
+      "variant": "vulnerable"
+    },
+    {
+      "case_id": "csrf",
+      "evidence": {
+        "after": {
+          "account_status": 200,
+          "balance_cents": 100000,
+          "latest_concept": null,
+          "movement_count": 0,
+          "username": "ana"
+        },
+        "before": {
+          "account_status": 200,
+          "balance_cents": 100000,
+          "latest_concept": null,
+          "movement_count": 0,
+          "username": "ana"
+        },
+        "captures": [
+          {
+            "description": "Saldo y actividad de Ana antes del envío del formulario.",
+            "label": "Antes",
+            "phase": "before",
+            "url": "/lab/artifacts/fe59124bc57a448eaa63773d9602f6c2/csrf-secure/before.png"
+          },
+          {
+            "description": "Saldo y actividad de Ana después del envío; si fue rechazado, permanecen iguales.",
+            "label": "Después",
+            "phase": "after",
+            "url": "/lab/artifacts/fe59124bc57a448eaa63773d9602f6c2/csrf-secure/after.png"
+          }
+        ],
+        "request": {
+          "body": "recipient=bruno&amount_cents=2500&concept=Demostraci%C3%B3n+CSRF",
+          "headers": {
+            "content-type": "application/x-www-form-urlencoded",
+            "origin": "http://localhost:5003",
+            "referer": "http://localhost:5003/"
+          },
+          "method": "POST",
+          "path": "/api/transfers",
+          "status": 400
+        },
+        "screenshots": [
+          "/lab/artifacts/fe59124bc57a448eaa63773d9602f6c2/csrf-secure/before.png",
+          "/lab/artifacts/fe59124bc57a448eaa63773d9602f6c2/csrf-secure/after.png"
+        ],
+        "summary": "La billetera corregida rechazó la transferencia entre orígenes y no cambió saldo ni actividad."
+      },
+      "outcome": "blocked",
+      "variant": "secure"
+    },
+    {
+      "case_id": "xss",
+      "evidence": {
+        "after": {
+          "account_status": 200,
+          "balance_cents": 100100,
+          "latest_concept": "<img src=x onerror=\"document.body.insertAdjacentHTML('afterbegin','<div data-testid=&quot;xss-marker&quot; style=&quot;color:red;font-weight:bold&quot;>XSS ejecutado</div>');this.remove()\">",
+          "movement_count": 1,
+          "username": "bruno"
+        },
+        "before": {
+          "account_status": 200,
+          "balance_cents": 100000,
+          "latest_concept": null,
+          "movement_count": 0,
+          "username": "bruno"
+        },
+        "captures": [
+          {
+            "description": "Billetera de Bruno antes de recibir el concepto de prueba.",
+            "label": "Antes",
+            "phase": "before",
+            "url": "/lab/artifacts/fe59124bc57a448eaa63773d9602f6c2/xss-vulnerable/before.png"
+          },
+          {
+            "description": "Actividad de Bruno después de recibir el concepto; muestra el marcador o el texto literal.",
+            "label": "Después",
+            "phase": "after",
+            "url": "/lab/artifacts/fe59124bc57a448eaa63773d9602f6c2/xss-vulnerable/after.png"
+          }
+        ],
+        "request": {
+          "body": "{\"recipient\":\"bruno\",\"amount_cents\":100,\"concept\":\"<img src=x onerror=\\\"document.body.insertAdjacentHTML('afterbegin','<div data-testid=&quot;xss-marker&quot; style=&quot;color:red;font-weight:bold&quot;>XSS ejecutado</div>');this.remove()\\\">\"}",
+          "headers": {
+            "content-type": "application/json",
+            "referer": "http://localhost:5000/"
+          },
+          "method": "POST",
+          "path": "/api/transfers",
+          "status": 200
+        },
+        "screenshots": [
+          "/lab/artifacts/fe59124bc57a448eaa63773d9602f6c2/xss-vulnerable/before.png",
+          "/lab/artifacts/fe59124bc57a448eaa63773d9602f6c2/xss-vulnerable/after.png"
+        ],
+        "summary": "Bruno abrió Actividad y el concepto persistente creó un marcador visible «XSS ejecutado»."
+      },
+      "outcome": "attack_reproduced",
+      "variant": "vulnerable"
+    },
+    {
+      "case_id": "xss",
+      "evidence": {
+        "after": {
+          "account_status": 200,
+          "balance_cents": 100100,
+          "latest_concept": "<img src=x onerror=\"document.body.insertAdjacentHTML('afterbegin','<div data-testid=&quot;xss-marker&quot; style=&quot;color:red;font-weight:bold&quot;>XSS ejecutado</div>');this.remove()\">",
+          "movement_count": 1,
+          "username": "bruno"
+        },
+        "before": {
+          "account_status": 200,
+          "balance_cents": 100000,
+          "latest_concept": null,
+          "movement_count": 0,
+          "username": "bruno"
+        },
+        "captures": [
+          {
+            "description": "Billetera de Bruno antes de recibir el concepto de prueba.",
+            "label": "Antes",
+            "phase": "before",
+            "url": "/lab/artifacts/fe59124bc57a448eaa63773d9602f6c2/xss-secure/before.png"
+          },
+          {
+            "description": "Actividad de Bruno después de recibir el concepto; muestra el marcador o el texto literal.",
+            "label": "Después",
+            "phase": "after",
+            "url": "/lab/artifacts/fe59124bc57a448eaa63773d9602f6c2/xss-secure/after.png"
+          }
+        ],
+        "request": {
+          "body": "{\"recipient\":\"bruno\",\"amount_cents\":100,\"concept\":\"<img src=x onerror=\\\"document.body.insertAdjacentHTML('afterbegin','<div data-testid=&quot;xss-marker&quot; style=&quot;color:red;font-weight:bold&quot;>XSS ejecutado</div>');this.remove()\\\">\"}",
+          "headers": {
+            "content-type": "application/json",
+            "referer": "http://localhost:5001/"
+          },
+          "method": "POST",
+          "path": "/api/transfers",
+          "status": 200
+        },
+        "screenshots": [
+          "/lab/artifacts/fe59124bc57a448eaa63773d9602f6c2/xss-secure/before.png",
+          "/lab/artifacts/fe59124bc57a448eaa63773d9602f6c2/xss-secure/after.png"
+        ],
+        "summary": "Bruno vio el concepto como texto y no se creó el marcador."
+      },
+      "outcome": "blocked",
+      "variant": "secure"
+    },
+    {
+      "case_id": "sqli",
+      "evidence": {
+        "after": {
+          "foreign_movement_exposed": true,
+          "movements": [
+            {
+              "amount_cents": 100,
+              "concept": "Compra propia",
+              "created_at": "2026-11-12 04:06:53",
+              "id": 1,
+              "recipient": "bruno",
+              "sender": "ana"
+            },
+            {
+              "amount_cents": 100,
+              "concept": "Movimiento reservado",
+              "created_at": "2026-11-12 04:06:54",
+              "id": 2,
+              "recipient": "bruno",
+              "sender": "admin"
+            }
+          ]
+        },
+        "before": {
+          "movements": [
+            {
+              "amount_cents": 100,
+              "concept": "Compra propia",
+              "created_at": "2026-11-12 04:06:53",
+              "id": 1,
+              "recipient": "bruno",
+              "sender": "ana"
+            }
+          ]
+        },
+        "captures": [
+          {
+            "description": "Actividad de Ana antes de la búsqueda de prueba.",
+            "label": "Antes",
+            "phase": "before",
+            "url": "/lab/artifacts/fe59124bc57a448eaa63773d9602f6c2/sqli-vulnerable/before.png"
+          },
+          {
+            "description": "Resultado de la búsqueda de prueba en Actividad.",
+            "label": "Después",
+            "phase": "after",
+            "url": "/lab/artifacts/fe59124bc57a448eaa63773d9602f6c2/sqli-vulnerable/after.png"
+          }
+        ],
+        "request": {
+          "method": "GET",
+          "path": "/api/movements",
+          "query": "' OR 1=1 --",
+          "status": 200
+        },
+        "screenshots": [
+          "/lab/artifacts/fe59124bc57a448eaa63773d9602f6c2/sqli-vulnerable/before.png",
+          "/lab/artifacts/fe59124bc57a448eaa63773d9602f6c2/sqli-vulnerable/after.png"
+        ],
+        "summary": "La búsqueda intenta cambiar la condición de autorización y obtener un movimiento entre otros usuarios."
+      },
+      "outcome": "attack_reproduced",
+      "variant": "vulnerable"
+    },
+    {
+      "case_id": "sqli",
+      "evidence": {
+        "after": {
+          "foreign_movement_exposed": false,
+          "movements": []
+        },
+        "before": {
+          "movements": [
+            {
+              "amount_cents": 100,
+              "concept": "Compra propia",
+              "created_at": "2026-11-12 04:06:58",
+              "id": 1,
+              "recipient": "bruno",
+              "sender": "ana"
+            }
+          ]
+        },
+        "captures": [
+          {
+            "description": "Actividad de Ana antes de la búsqueda de prueba.",
+            "label": "Antes",
+            "phase": "before",
+            "url": "/lab/artifacts/fe59124bc57a448eaa63773d9602f6c2/sqli-secure/before.png"
+          },
+          {
+            "description": "Resultado de la búsqueda de prueba en Actividad.",
+            "label": "Después",
+            "phase": "after",
+            "url": "/lab/artifacts/fe59124bc57a448eaa63773d9602f6c2/sqli-secure/after.png"
+          }
+        ],
+        "request": {
+          "method": "GET",
+          "path": "/api/movements",
+          "query": "' OR 1=1 --",
+          "status": 200
+        },
+        "screenshots": [
+          "/lab/artifacts/fe59124bc57a448eaa63773d9602f6c2/sqli-secure/before.png",
+          "/lab/artifacts/fe59124bc57a448eaa63773d9602f6c2/sqli-secure/after.png"
+        ],
+        "summary": "La búsqueda intenta cambiar la condición de autorización y obtener un movimiento entre otros usuarios."
+      },
+      "outcome": "blocked",
+      "variant": "secure"
+    },
+    {
+      "case_id": "authentication",
+      "evidence": {
+        "after": {
+          "attempt_statuses": [
+            401,
+            401,
+            401,
+            401,
+            401,
+            401
+          ],
+          "messages_uniform": false,
+          "rate_limit_observed": false
+        },
+        "before": {
+          "existing_account_message": "Contraseña incorrecta",
+          "unknown_account_message": "El usuario no existe"
+        },
+        "captures": [
+          {
+            "description": "Formulario de acceso antes de los intentos.",
+            "label": "Antes",
+            "phase": "before",
+            "url": "/lab/artifacts/fe59124bc57a448eaa63773d9602f6c2/authentication-vulnerable/before.png"
+          },
+          {
+            "description": "Respuesta visible del formulario después de los intentos.",
+            "label": "Después",
+            "phase": "after",
+            "url": "/lab/artifacts/fe59124bc57a448eaa63773d9602f6c2/authentication-vulnerable/after.png"
+          }
+        ],
+        "request": {
+          "body": {
+            "password": "[oculta]",
+            "username": "ana / noexiste"
+          },
+          "method": "POST",
+          "path": "/api/auth/login",
+          "status": [
+            401,
+            401,
+            401,
+            401,
+            401,
+            401
+          ]
+        },
+        "screenshots": [
+          "/lab/artifacts/fe59124bc57a448eaa63773d9602f6c2/authentication-vulnerable/before.png",
+          "/lab/artifacts/fe59124bc57a448eaa63773d9602f6c2/authentication-vulnerable/after.png"
+        ],
+        "summary": "Se comparan errores de login y se realizan intentos acotados sobre una cuenta ficticia."
+      },
+      "outcome": "attack_reproduced",
+      "variant": "vulnerable"
+    },
+    {
+      "case_id": "authentication",
+      "evidence": {
+        "after": {
+          "attempt_statuses": [
+            401,
+            401,
+            401,
+            401,
+            429,
+            429
+          ],
+          "messages_uniform": true,
+          "rate_limit_observed": true
+        },
+        "before": {
+          "existing_account_message": "Credenciales inválidas",
+          "unknown_account_message": "Credenciales inválidas"
+        },
+        "captures": [
+          {
+            "description": "Formulario de acceso antes de los intentos.",
+            "label": "Antes",
+            "phase": "before",
+            "url": "/lab/artifacts/fe59124bc57a448eaa63773d9602f6c2/authentication-secure/before.png"
+          },
+          {
+            "description": "Respuesta visible del formulario después de los intentos.",
+            "label": "Después",
+            "phase": "after",
+            "url": "/lab/artifacts/fe59124bc57a448eaa63773d9602f6c2/authentication-secure/after.png"
+          }
+        ],
+        "request": {
+          "body": {
+            "password": "[oculta]",
+            "username": "ana / noexiste"
+          },
+          "method": "POST",
+          "path": "/api/auth/login",
+          "status": [
+            401,
+            401,
+            401,
+            401,
+            429,
+            429
+          ]
+        },
+        "screenshots": [
+          "/lab/artifacts/fe59124bc57a448eaa63773d9602f6c2/authentication-secure/before.png",
+          "/lab/artifacts/fe59124bc57a448eaa63773d9602f6c2/authentication-secure/after.png"
+        ],
+        "summary": "Se comparan errores de login y se realizan intentos acotados sobre una cuenta ficticia."
+      },
+      "outcome": "blocked",
+      "variant": "secure"
+    },
+    {
+      "case_id": "ssrf",
+      "evidence": {
+        "after": {
+          "internal_data_exposed": true,
+          "internal_requests": 2,
+          "response": {
+            "result": {
+              "message": "DATO INTERNO FICTICIO"
+            }
+          }
+        },
+        "before": {
+          "internal_requests": 1,
+          "legitimate_provider_status": 200
+        },
+        "captures": [
+          {
+            "description": "Cotizador antes de consultar el servicio interno ficticio.",
+            "label": "Antes",
+            "phase": "before",
+            "url": "/lab/artifacts/fe59124bc57a448eaa63773d9602f6c2/ssrf-vulnerable/before.png"
+          },
+          {
+            "description": "Resultado visible de la consulta al servicio interno ficticio.",
+            "label": "Después",
+            "phase": "after",
+            "url": "/lab/artifacts/fe59124bc57a448eaa63773d9602f6c2/ssrf-vulnerable/after.png"
+          }
+        ],
+        "request": {
+          "body": {
+            "url": "http://private-ledger:8080/demo"
+          },
+          "method": "POST",
+          "path": "/api/quotes/import",
+          "status": 200
+        },
+        "screenshots": [
+          "/lab/artifacts/fe59124bc57a448eaa63773d9602f6c2/ssrf-vulnerable/before.png",
+          "/lab/artifacts/fe59124bc57a448eaa63773d9602f6c2/ssrf-vulnerable/after.png"
+        ],
+        "summary": "El proveedor legítimo funciona; se intenta consultar un servicio interno ficticio desde el servidor."
+      },
+      "outcome": "attack_reproduced",
+      "variant": "vulnerable"
+    },
+    {
+      "case_id": "ssrf",
+      "evidence": {
+        "after": {
+          "internal_data_exposed": false,
+          "internal_requests": 2,
+          "response": {
+            "error": "Proveedor no permitido"
+          }
+        },
+        "before": {
+          "internal_requests": 2,
+          "legitimate_provider_status": 200
+        },
+        "captures": [
+          {
+            "description": "Cotizador antes de consultar el servicio interno ficticio.",
+            "label": "Antes",
+            "phase": "before",
+            "url": "/lab/artifacts/fe59124bc57a448eaa63773d9602f6c2/ssrf-secure/before.png"
+          },
+          {
+            "description": "Resultado visible de la consulta al servicio interno ficticio.",
+            "label": "Después",
+            "phase": "after",
+            "url": "/lab/artifacts/fe59124bc57a448eaa63773d9602f6c2/ssrf-secure/after.png"
+          }
+        ],
+        "request": {
+          "body": {
+            "url": "http://private-ledger:8080/demo"
+          },
+          "method": "POST",
+          "path": "/api/quotes/import",
+          "status": 400
+        },
+        "screenshots": [
+          "/lab/artifacts/fe59124bc57a448eaa63773d9602f6c2/ssrf-secure/before.png",
+          "/lab/artifacts/fe59124bc57a448eaa63773d9602f6c2/ssrf-secure/after.png"
+        ],
+        "summary": "El proveedor legítimo funciona; se intenta consultar un servicio interno ficticio desde el servidor."
+      },
+      "outcome": "blocked",
+      "variant": "secure"
+    }
+  ],
+  "status": "completed"
+}

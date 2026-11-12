@@ -8,139 +8,8 @@ import {
 } from "../shared/api";
 import type { LabResult, LabRun, LabStatus, Variant } from "../shared/types";
 
-type CaseId = "access-control" | "csrf" | "xss" | "sqli" | "authentication" | "ssrf";
-
-type Exercise = {
-  id: CaseId;
-  title: string;
-  short: string;
-  goal: string;
-  prerequisites: string[];
-  steps: string[];
-  request: string;
-  vulnerable: string;
-  corrected: string;
-  fix: string;
-  payload?: string;
-};
-
-const XSS_PAYLOAD =
-  '<img src=x onerror="' +
-  "document.body.insertAdjacentHTML('afterbegin','<div data-testid=&quot;xss-marker&quot; style=&quot;color:red;font-weight:bold&quot;>XSS ejecutado</div>');" +
-  'this.remove()">';
-const SQLI_PAYLOAD = "' OR 1=1 --";
-
-const EXERCISES: Exercise[] = [
-  {
-    id: "access-control",
-    title: "Autorización y rol de administrador",
-    short: "Acceso a ajustes",
-    goal: "Comprobar que la API valida el rol en cada operación privilegiada.",
-    prerequisites: ["Ingresá en la billetera vulnerable con ana.", "Anotá su saldo antes de empezar: 100000 centavos."],
-    steps: [
-      "Abrí las herramientas del navegador en la página de la billetera y consultá /api/me para obtener tu id ficticio.",
-      "Enviá un POST a /api/admin/adjustments para acreditar 5000 centavos en tu propia cuenta.",
-      "En vulnerable, compará el saldo de ana: debe pasar de 100000 a 105000 centavos.",
-      "Repetí la misma solicitud en corregida: debe rechazarse y conservar el saldo.",
-      "Como control positivo, ingresá como admin y comprobá que puede aplicar y revertir un ajuste pequeño.",
-    ],
-    request: 'POST /api/admin/adjustments\n{ "user_id": <id de ana>, "delta_cents": 5000, "reason": "Demostración control de acceso" }',
-    vulnerable: "Ana puede acreditar $50 ficticios a su cuenta: 100000 → 105000 centavos.",
-    corrected: "El servidor rechaza el ajuste y conserva el saldo; un administrador sigue pudiendo ajustar.",
-    fix: "Validar autorización en el servidor en cada ruta sensible; el rol del cliente no concede permisos.",
-    payload:
-      'const me = await (await fetch("/api/me")).json();\nconst token = (await (await fetch("/api/csrf-token")).json()).token;\nawait fetch("/api/admin/adjustments", { method: "POST", headers: { "Content-Type": "application/json", "X-CSRF-Token": token }, body: JSON.stringify({ user_id: me.user.id, delta_cents: 5000, reason: "Demostración control de acceso" }) });',
-  },
-  {
-    id: "csrf",
-    title: "Solicitud entre sitios (CSRF)",
-    short: "Transferencia forzada",
-    goal: "Ver si una página en otro origen puede iniciar una transferencia con la sesión abierta.",
-    prerequisites: ["Ingresá normalmente a la billetera que vas a probar.", "Usá la misma ventana del navegador para abrir la página atacante local."],
-    steps: [
-      "Elegí la variante vulnerable y dejá abierta la billetera con ana.",
-      "Abrí la página atacante local en otra pestaña y seleccioná Vulnerable.",
-      "La página envía un formulario real con una transferencia ficticia de $25 a bruno.",
-      "Volvé a la billetera y revisá el saldo y la actividad.",
-      "Repetí el ejercicio con la variante corregida.",
-    ],
-    request: "POST /api/transfers\nrecipient=bruno · amount_cents=2500 · concept=Demostración CSRF",
-    vulnerable: "La transferencia aparece en la actividad y modifica los saldos ficticios.",
-    corrected: "La solicitud sin token CSRF se rechaza y no modifica los saldos.",
-    fix: "Exigir un token anti-CSRF para toda mutación y validar el origen según la política del servidor.",
-  },
-  {
-    id: "xss",
-    title: "XSS persistente en el concepto",
-    short: "Contenido almacenado",
-    goal: "Observar cómo un concepto guardado puede ejecutarse cuando otro usuario abre la actividad.",
-    prerequisites: ["Ingresá en la billetera con ana.", "Usá el concepto de prueba que aparece abajo; no uses datos personales."],
-    steps: [
-      "En Transferencias, enviá $1 a bruno y pegá el payload como concepto.",
-      "Cerrá sesión de ana e ingresá como bruno, en la misma variante.",
-      "Abrí Actividad de bruno y buscá la transferencia entrante.",
-      "En la variante vulnerable, aparece un marcador visible “XSS ejecutado”.",
-      "En la variante corregida, el texto del payload se muestra literal y no aparece el marcador.",
-    ],
-    request: "POST /api/transfers\nconcept=<payload HTML de prueba>",
-    vulnerable: "El navegador crea un marcador HTML visible al renderizar el concepto almacenado.",
-    corrected: "React representa el concepto como texto; no crea el elemento ni muestra el marcador.",
-    fix: "Codificar el contenido al renderizarlo; evitar sinks HTML sin sanitización y aplicar CSP como defensa adicional.",
-    payload: XSS_PAYLOAD,
-  },
-  {
-    id: "sqli",
-    title: "Inyección SQL en la búsqueda",
-    short: "Historial y búsqueda",
-    goal: "Comparar la búsqueda de actividad ante una condición que amplía la consulta.",
-    prerequisites: ["Restablecé ambas variantes e iniciá sesión con ana.", "Creá un movimiento de ana a bruno y otro de admin a bruno; volvé a ingresar con ana.", "Este ejercicio sólo consulta movimientos."],
-    steps: [
-      "Abrí Actividad en la billetera.",
-      "Pegá el payload en el campo de búsqueda y enviá la consulta.",
-      "Observá si aparecen movimientos que no corresponden a ana o si el servidor devuelve un error SQL.",
-      "Repetí la búsqueda en la variante corregida y compará las filas.",
-    ],
-    request: "GET /api/movements?q=<payload>",
-    vulnerable: "La condición altera la consulta y puede ampliar los resultados.",
-    corrected: "El texto se trata como un valor; no aparecen filas adicionales.",
-    fix: "Usar consultas parametrizadas y limitar cada resultado a la cuenta autenticada.",
-    payload: SQLI_PAYLOAD,
-  },
-  {
-    id: "authentication",
-    title: "Enumeración y limitación de intentos",
-    short: "Acceso a cuentas",
-    goal: "Comparar los mensajes de login y la respuesta ante intentos repetidos.",
-    prerequisites: ["Usá nombres de usuario y contraseñas ficticios.", "Restablecé el laboratorio antes de empezar para limpiar el estado de intentos."],
-    steps: [
-      "En la pantalla de login, probá un usuario inexistente con una contraseña cualquiera.",
-      "Probá ana con una contraseña incorrecta y compará los mensajes.",
-      "Repetí varios intentos con la misma cuenta y anotá cuándo se aplica el límite.",
-      "Repetí en la variante corregida.",
-    ],
-    request: 'POST /api/auth/login\n{ "username": "ana o usuario-inexistente", "password": "incorrecta" }',
-    vulnerable: "Puede diferenciar una cuenta inexistente y aceptar intentos repetidos sin el límite esperado.",
-    corrected: "Devuelve un rechazo genérico y limita intentos reiterados.",
-    fix: "Unificar mensajes de autenticación y aplicar limitación de intentos en servidor, también por origen y cuenta.",
-  },
-  {
-    id: "ssrf",
-    title: "SSRF al importar una cotización",
-    short: "Proveedor externo",
-    goal: "Verificar que el servidor sólo consulte el proveedor de cotizaciones permitido.",
-    prerequisites: ["Abrí Cotizador en la billetera.", "Las direcciones del ejercicio sólo existen dentro de la red Docker del laboratorio."],
-    steps: [
-      "Consultá primero el proveedor permitido: http://quote-provider:8080/quote/USD.",
-      "Probá después la URL del servicio interno ficticio: http://private-ledger:8080/demo.",
-      "Compará la respuesta de ambas variantes y la evidencia del test automático.",
-    ],
-    request: 'POST /api/quotes/import\n{ "url": "http://private-ledger:8080/demo" }',
-    vulnerable: "El servidor puede devolver información del fixture interno ficticio.",
-    corrected: "El servidor rechaza el destino interno y no consulta el fixture.",
-    fix: "Construir el destino desde una allowlist exacta del proveedor simulado; validar ruta, desactivar redirecciones y limitar tiempo/tamaño. Mantener la excepción del fixture interno sólo en la variante de laboratorio aislada.",
-    payload: "http://private-ledger:8080/demo",
-  },
-];
+import { EXERCISES, MANUAL_SUMMARIES } from "./manualCases";
+import type { CaseId, Exercise } from "./manualCases";
 
 function formatRunStatus(status: string): string {
   const normalized = status.toLowerCase();
@@ -457,46 +326,59 @@ export default function GuideApp() {
                   Esta prueba necesita datos limpios. Restablecé ambas billeteras; después iniciá sesión normalmente y ejecutala.
                 </p>
               )}
-              <div className="manual-grid">
-                <section className="manual-panel">
-                  <h4>Ejercicio manual</h4>
-                  <h5>Antes de empezar</h5>
-                  <ul>{currentExercise.prerequisites.map((item) => <li key={item}>{item}</li>)}</ul>
-                  <h5>Pasos</h5>
-                  <ol>{currentExercise.steps.map((item) => <li key={item}>{item}</li>)}</ol>
+              <div className="manual-guide">
+                <section className="manual-brief" aria-label="Resumen de la prueba manual">
+                  <h4>Prueba manual</h4>
+                  <p>Restablecé ambas versiones, recargá las billeteras y usá localhost. La contraseña demo es <strong>Demo1234!</strong>. No restablezcas entre variantes.</p>
+                  <p><strong>Cómo ejecutarla:</strong> {MANUAL_SUMMARIES[currentExercise.id].execute}</p>
+                  <p><strong>Qué se envía:</strong> {MANUAL_SUMMARIES[currentExercise.id].sends}</p>
+                  <div className="manual-outcomes">
+                    <p><strong>Vulnerable:</strong> {MANUAL_SUMMARIES[currentExercise.id].vulnerable}</p>
+                    <p><strong>Corregida:</strong> {MANUAL_SUMMARIES[currentExercise.id].secure}</p>
+                  </div>
                   <div className="manual-request">
-                    <div className="manual-request-heading"><strong>Petición a observar</strong><button className="text-button" type="button" onClick={() => void copyText(currentExercise.request)}>Copiar</button></div>
+                    <strong>Petición a observar · HTTP ilustrativo</strong>
+                    <p>Esquema para Network/Red, no es código para pegar en Console. Los valores entre ángulos son marcadores.</p>
                     <pre>{currentExercise.request}</pre>
                   </div>
-                  {currentExercise.payload && (
-                    <div className="manual-payload">
-                      <div className="manual-request-heading"><strong>{currentExercise.id === "xss" ? "Concepto de prueba" : currentExercise.id === "ssrf" ? "URL de servicio interno simulado" : currentExercise.id === "sqli" ? "Búsqueda de prueba" : "Solicitud de ejemplo"}</strong><button className="text-button" type="button" onClick={() => void copyText(currentExercise.payload ?? "")}>Copiar</button></div>
-                      <pre>{currentExercise.payload}</pre>
-                    </div>
-                  )}
-                  {currentExercise.id === "csrf" && (
-                    <div className="attacker-links">
-                      <a className="button button-secondary" href="http://localhost:5003/?variant=vulnerable" target="_blank" rel="noreferrer">Abrir atacante · vulnerable</a>
-                      <a className="button button-secondary" href="http://localhost:5003/?variant=secure" target="_blank" rel="noreferrer">Abrir atacante · corregida</a>
-                    </div>
-                  )}
+                  {(() => {
+                    const snippet = MANUAL_SUMMARIES[currentExercise.id].snippet ?? currentExercise.blocks.find((block) => block.snippet)?.snippet;
+                    return snippet && <div className="manual-payload">
+                      <div className="manual-request-heading"><strong>{snippet.label}</strong><button className="text-button" type="button" aria-label={"Copiar " + snippet.label} onClick={() => void copyText(snippet.value)}>Copiar</button></div>
+                      <pre>{snippet.value}</pre>
+                    </div>;
+                  })()}
+                  {currentExercise.id === "csrf" && <p><a href="http://localhost:5003/" target="_blank" rel="noreferrer">Abrir página atacante de demostración (:5003) ↗</a></p>}
                 </section>
-                <section className="manual-panel manual-observation">
-                  <h4>Qué observar</h4>
-                  <div className="expected-row expected-vulnerable">
-                    <span className="expected-label">Vulnerable</span>
-                    <p>{currentExercise.vulnerable}</p>
-                  </div>
-                  <div className="expected-row expected-secure">
-                    <span className="expected-label">Corregida</span>
-                    <p>{currentExercise.corrected}</p>
-                  </div>
-                  <div className="fix-note">
-                    <strong>Corrección a revisar</strong>
-                    <p>{currentExercise.fix}</p>
-                  </div>
-                  <p className="manual-disclaimer">Las pruebas manuales cambian datos ficticios de la billetera. Usá el botón de restablecimiento antes de empezar otro caso.</p>
+                <details className="manual-details" key={currentExercise.id}>
+                  <summary>Ver paso a paso</summary>
+                <section className="manual-preparation" aria-labelledby="manual-preparation-title">
+                  <h4 id="manual-preparation-title">Antes de cada caso</h4>
+                  <p>Usá siempre localhost: vulnerable en <a href="http://localhost:5000/" target="_blank" rel="noreferrer">:5000</a>, corregida en <a href="http://localhost:5001/" target="_blank" rel="noreferrer">:5001</a> y esta guía en :5002. Antes de comenzar cada caso, pulsá «Restablecer ambas versiones» arriba y confirmá con «Restablecer ambas». Esperá el mensaje de éxito para ambas: se borran los datos ficticios y se invalidan sesiones y tokens. Recargá las pestañas de las billeteras e ingresá de nuevo. No restablezcas entre las dos variantes de un mismo caso.</p>
+                  <p>En el formulario de acceso completá Usuario y Contraseña y pulsá Entrar. La clave demo de ana, bruno y admin es <strong>Demo1234!</strong>. Las pestañas de una misma variante y perfil comparten sesión. Si usás F12, abrilo en la pestaña indicada: Console ejecuta JavaScript; Network/Red permite observar solicitudes y respuestas.</p>
                 </section>
+                <h4>Paso a paso</h4>
+                {currentExercise.id === "csrf" && <p><a href="http://localhost:5003/" target="_blank" rel="noreferrer">Abrir página atacante de demostración (:5003) ↗</a> · El envío ocurre sólo al elegir una variante en esa página.</p>}
+                {currentExercise.blocks.map((block) => (
+                  <section className="manual-step" key={block.title}>
+                    <h5>{block.title}</h5>
+                    <ol>{block.steps.map((step) => <li key={step}>{step}</li>)}</ol>
+                    {block.snippet && (
+                      <div className="manual-payload">
+                        <div className="manual-request-heading"><strong>{block.snippet.label}</strong><button className="text-button" type="button" aria-label={"Copiar " + block.snippet.label} onClick={() => void copyText(block.snippet!.value)}>Copiar</button></div>
+                        <pre>{block.snippet.value}</pre>
+                      </div>
+                    )}
+
+                  </section>
+                ))}
+                <section className="manual-takeaway">
+                  <h5>Qué significa</h5><p>{currentExercise.conclusion}</p>
+                  <h5>Cómo se corrigió</h5><p>{currentExercise.fix}</p>
+                  <h5>Dónde mirar el código</h5><p>{currentExercise.code}</p>
+                  <h5>Si el resultado no coincide</h5><p>{currentExercise.recovery}</p>
+                </section>
+                </details>
               </div>
             </article>
           </div>
@@ -647,6 +529,12 @@ function RunPanel({ run, compact = false }: { run: LabRun; compact?: boolean }) 
 function ResultEvidence({ result }: { result: LabResult }) {
   const expected = expectedForVariant(result);
   const tone = result.outcome === "inconclusive" ? "outcome-inconclusive" : result.outcome === "unexpected" || !expected ? "outcome-error" : result.variant === "vulnerable" ? "outcome-exposure" : "outcome-blocked";
+  const hasCaptures = !!result.evidence.captures?.length;
+  const captures = hasCaptures ? result.evidence.captures! : (result.evidence.screenshots ?? []).map((url, index) => {
+    const filename = url.split("?")[0].split("/").pop() ?? "";
+    const label = /(?:^|[-_.])before(?:[-_.]|$)/i.test(filename) ? "Antes" : /(?:^|[-_.])after(?:[-_.]|$)/i.test(filename) ? "Después" : `Captura ${index + 1}`;
+    return { url, label, description: "" };
+  });
   return (
     <section className="result-evidence">
       <div className="result-evidence-heading">
@@ -662,15 +550,18 @@ function ResultEvidence({ result }: { result: LabResult }) {
         {result.evidence.request !== undefined && <EvidenceBlock title="Solicitud y respuesta" value={result.evidence.request} />}
         {result.evidence.after !== undefined && <EvidenceBlock title="Después" value={result.evidence.after} />}
       </div>
-      {!!result.evidence.screenshots?.length && (
+      {!!captures.length && (
+        <>
+        {!hasCaptures && <p>Capturas de una ejecución anterior, sin la validación visual actual. Reejecutá el caso para generar nuevas evidencias.</p>}
         <div className="evidence-shots">
-          {result.evidence.screenshots.map((screenshot, index) => (
-            <a href={screenshot} target="_blank" rel="noreferrer" key={screenshot}>
-              <img src={screenshot} alt={"Captura " + (index + 1) + " de la ejecución"} loading="lazy" />
-              <span>{index === 0 ? "Antes" : "Después"}</span>
+          {captures.map((capture, index) => (
+            <a href={capture.url} target="_blank" rel="noreferrer" key={capture.url + index}>
+              <img src={capture.url} alt={capture.description || capture.label + " de la ejecución"} loading="lazy" />
+              <span><strong>{capture.label}</strong>{capture.description && <> · {capture.description}</>}</span>
             </a>
           ))}
         </div>
+        </>
       )}
     </section>
   );

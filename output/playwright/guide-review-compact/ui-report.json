@@ -1,0 +1,102 @@
+{
+  "views": [
+    {
+      "width": 1440,
+      "case": 0,
+      "summary": true,
+      "keyboard_toggle": true,
+      "switch_closes": true,
+      "overflow": false
+    },
+    {
+      "width": 1440,
+      "case": 1,
+      "summary": true,
+      "keyboard_toggle": true,
+      "switch_closes": true,
+      "overflow": false
+    },
+    {
+      "width": 1440,
+      "case": 2,
+      "summary": true,
+      "keyboard_toggle": true,
+      "switch_closes": true,
+      "overflow": false
+    },
+    {
+      "width": 1440,
+      "case": 3,
+      "summary": true,
+      "keyboard_toggle": true,
+      "switch_closes": true,
+      "overflow": false
+    },
+    {
+      "width": 1440,
+      "case": 4,
+      "summary": true,
+      "keyboard_toggle": true,
+      "switch_closes": true,
+      "overflow": false
+    },
+    {
+      "width": 1440,
+      "case": 5,
+      "summary": true,
+      "keyboard_toggle": true,
+      "switch_closes": true,
+      "overflow": false
+    },
+    {
+      "width": 390,
+      "case": 0,
+      "summary": true,
+      "keyboard_toggle": true,
+      "switch_closes": true,
+      "overflow": false
+    },
+    {
+      "width": 390,
+      "case": 1,
+      "summary": true,
+      "keyboard_toggle": true,
+      "switch_closes": true,
+      "overflow": false
+    },
+    {
+      "width": 390,
+      "case": 2,
+      "summary": true,
+      "keyboard_toggle": true,
+      "switch_closes": true,
+      "overflow": false
+    },
+    {
+      "width": 390,
+      "case": 3,
+      "summary": true,
+      "keyboard_toggle": true,
+      "switch_closes": true,
+      "overflow": false
+    },
+    {
+      "width": 390,
+      "case": 4,
+      "summary": true,
+      "keyboard_toggle": true,
+      "switch_closes": true,
+      "overflow": false
+    },
+    {
+      "width": 390,
+      "case": 5,
+      "summary": true,
+      "keyboard_toggle": true,
+      "switch_closes": true,
+      "overflow": false
+    }
+  ],
+  "errors": [],
+  "copy": true
+}

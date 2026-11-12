@@ -13,6 +13,7 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import urlsplit
 
+from lab.captures import write_screenshot
 
 DEMO_USER = "ana"
 DEMO_PASSWORD = "Demo1234!"
@@ -92,9 +93,22 @@ def _valid_snapshot(snapshot: dict[str, Any], username: str) -> bool:
 
 
 def _write_screenshot(page: Any, directory: Path, name: str) -> str:
-    path = directory / name
-    page.screenshot(path=str(path), full_page=True, animations="disabled", timeout=ACTION_TIMEOUT_MS)
-    return name
+    return write_screenshot(page, directory, name, full_page=True, animations="disabled", timeout=ACTION_TIMEOUT_MS)
+
+
+def _wait_for_csrf_effect(page: Any, expected_balance: int, previous_balance: str) -> None:
+    """Wait for both the server state and the wallet's rendered effect."""
+    page.wait_for_function(
+        """async ({expected, previous}) => {
+          const response = await fetch('/api/me', {credentials: 'include', cache: 'no-store'});
+          if (!response.ok) return false;
+          const payload = await response.json();
+          const visible = document.querySelector('[data-testid=balance]')?.textContent?.trim();
+          return payload.user?.balance_cents === expected && visible && visible !== previous;
+        }""",
+        arg={"expected": expected_balance, "previous": previous_balance}, timeout=6500,
+    )
+    page.get_by_text("Demostración CSRF", exact=True).wait_for(state="visible", timeout=ACTION_TIMEOUT_MS)
 
 
 def _is_cancelled(cancel_event: threading.Event) -> bool:
@@ -177,9 +191,9 @@ def run_browser_case(
         before = _wallet_snapshot(page)
         if not _valid_snapshot(before, DEMO_USER):
             return _result("inconclusive", "La sesión de ana no quedó activa; puede haberse restablecido la billetera.", before=before, screenshots=[])
-        before_screenshot = _write_screenshot(page, directory, "before.png")
-
         if case_id == "csrf":
+            before_screenshot = _write_screenshot(page, directory, "before.png")
+            visible_balance_before = page.get_by_test_id("balance").inner_text()
             attack_url = attacker_url.rstrip("/") + "/?variant=" + variant
             attacker_page = context.new_page()
             try:
@@ -210,25 +224,11 @@ def run_browser_case(
                     screenshots=[before_screenshot],
                 )
 
-            visible_balance_before = page.get_by_test_id("balance").inner_text()
             page.bring_to_front()
             status = transfer_record.get("status") if transfer_record else None
             if status == 200:
                 expected_balance = before["balance_cents"] - 2500
-                try:
-                    page.wait_for_function(
-                        """async (expected) => {
-                          const response = await fetch('/api/me', {credentials: 'include', cache: 'no-store'});
-                          if (!response.ok) return false;
-                          const payload = await response.json();
-                          const visible = document.querySelector('[data-testid=balance]')?.textContent?.trim();
-                          return payload.user?.balance_cents === expected && visible && visible !== previous;
-                        }""",
-                        arg={"expected": expected_balance, "previous": visible_balance_before},
-                        timeout=6500,
-                    )
-                except playwright_timeout:
-                    pass
+                _wait_for_csrf_effect(page, expected_balance, visible_balance_before)
             else:
                 # Let the wallet's two-second refresh show any unchanged balance.
                 page.wait_for_timeout(2200)

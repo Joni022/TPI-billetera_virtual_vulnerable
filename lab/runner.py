@@ -19,6 +19,33 @@ ROOT = Path(__file__).resolve().parent.parent
 CASE_TIMEOUT_SECONDS = 90
 
 
+def capture_evidence(directory, run_id, entries):
+    """Expose only explicitly declared, existing local screenshots."""
+    captures = []
+    if not isinstance(entries, list):
+        return captures
+    for entry in entries:
+        if not isinstance(entry, dict):
+            continue
+        name = entry.get("filename")
+        phase = entry.get("phase")
+        if name not in ("before.png", "after.png") or phase not in ("before", "after", "observation"):
+            continue
+        if not all(isinstance(entry.get(key), str) for key in ("label", "description")):
+            continue
+        path = directory / name
+        if path.is_file() and not path.is_symlink():
+            captures.append({"url": f"/lab/artifacts/{run_id}/{directory.name}/{name}",
+                             "phase": phase, "label": entry["label"], "description": entry["description"]})
+    return captures
+
+
+def attach_capture_evidence(evidence, directory, run_id):
+    captures = capture_evidence(directory, run_id, evidence.get("captures", []))
+    evidence["captures"] = captures
+    evidence["screenshots"] = [capture["url"] for capture in captures]
+
+
 class BusyError(Exception):
     pass
 
@@ -158,11 +185,7 @@ class LabManager:
             if result.get("outcome") not in ("attack_reproduced", "blocked", "unexpected", "inconclusive"):
                 raise ValueError()
             evidence = result.setdefault("evidence", {})
-            screenshots = []
-            for path in sorted(output.glob("*.png"), key=lambda path: (0 if path.name == "before.png" else 1, path.name)):
-                if path.is_file() and not path.is_symlink():
-                    screenshots.append(f"/lab/artifacts/{run['id']}/{output.name}/{path.name}")
-            evidence["screenshots"] = screenshots
+            attach_capture_evidence(evidence, output, run["id"])
             return result
         except (OSError, ValueError, TypeError):
             return {"outcome": "inconclusive", "evidence": {"summary": "El ejecutor no produjo evidencia válida."}}

@@ -55,6 +55,7 @@ export type LabEvidence = {
   request?: unknown;
   before?: unknown;
   after?: unknown;
+  captures?: { url: string; phase: "before" | "after" | "observation"; label: string; description: string }[];
   screenshots?: string[];
 };
 

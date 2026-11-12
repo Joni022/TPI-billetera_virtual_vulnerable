@@ -76,6 +76,8 @@ Las pruebas de navegador CSRF y XSS se implementan en `tests_browser/scenarios.p
 
 Se aprobaron 21 pruebas de backend, control de ejecuciones y pasarela, junto con las 12 observaciones del lote completo en Chromium. La revisión visual cubrió escritorio y celular de 390 px, sin desbordamientos ni errores JavaScript y con foco de teclado visible. Se comprobó el cambio de saldo en una billetera abierta sin recargar, el cierre de sesión al restablecer y la cancelación sin dejar navegadores ejecutándose.
 
+Validación posterior del 12 de noviembre de 2026: 25 pruebas Python aprobadas y un nuevo lote de 12 resultados esperados. Se revisaron las 24 capturas, sus fases y descripciones, y la guía en escritorio y móvil. Los archivos de esa revisión están en `output/playwright/guide-review-compact/`; los resultados anteriores se conservan como evidencia histórica.
+
 El [informe técnico](docs/INFORME.md) explica resultados y límites. Las evidencias del lote definitivo están en `evidencias/ejecucion-final/result.json` y las capturas/reportes de interfaz en `evidencias/visual/`.
 
 Para repetir la revisión visual, sin una ejecución de ejercicios activa:
